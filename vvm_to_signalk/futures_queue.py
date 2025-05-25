@@ -35,8 +35,10 @@ class FuturesQueue:
 
         if key in self.__queue:
             logger.debug("triggered future for %s with %s", key, value)
-            future = self.__queue[key]
-            del self.__queue[key]
+            future = self.__queue.pop(key, None)
+            if future is None:
+                logger.warning("triggered future for %s but it was already removed", key)
+                return
             future.set_result(value)
         else:
             logger.warning("triggered future for %s with no listener", key)

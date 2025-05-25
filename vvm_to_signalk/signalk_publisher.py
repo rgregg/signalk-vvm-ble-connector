@@ -57,7 +57,7 @@ class SignalKPublisher:
         """Sets the health of the SignalK connection"""
         self.__health["signalk"] = value
         if message is None:
-            del self.__health["signalk_error"]
+            self.__health.pop("signalk_error", None)
         else:
             self.__health["signalk_error"] = message
             logger.warning(message)

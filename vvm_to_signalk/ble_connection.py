@@ -95,7 +95,7 @@ class BleDeviceConnection:
         """Sets the health of the BLE connection"""
         self.__health["bluetooth"] = value
         if message is None:
-            del self.__health["bluetooth_error"]
+            self.__health.pop("bluetooth_error", None)
         else:
             self.__health["bluetooth_error"] = message
             logger.warning(message)
