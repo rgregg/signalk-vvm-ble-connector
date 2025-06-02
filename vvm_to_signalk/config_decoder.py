@@ -192,7 +192,7 @@ class EngineParameter:
         if self.parameter_type == EngineParameterType.OIL_PRESSURE:
             return "oilPressure"
         
-        logger.warning("Unable to map SignalK path for parameter type %s on engine %s.", self.parameter_type, self.engine_id)
+        logger.debug("Unable to map SignalK path for parameter type %s on engine %s.", self.parameter_type, self.engine_id)
         return self.parameter_type.name
 
     

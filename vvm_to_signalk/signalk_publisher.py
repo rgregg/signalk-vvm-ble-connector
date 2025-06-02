@@ -60,7 +60,7 @@ class SignalKPublisher:
             self.__health.pop("signalk_error", None)
         else:
             self.__health["signalk_error"] = message
-            logger.warning(message)
+            logger.info(message)
         
 
 

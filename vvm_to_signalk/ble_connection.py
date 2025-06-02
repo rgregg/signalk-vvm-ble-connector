@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import json
 
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -63,9 +64,9 @@ class BleDeviceConnection:
         self.__csv_writer = value
     
    
-    def cb_disconnected(self):
+    def cb_disconnected(self, _client: BleakClient):
         """ Handle when the BLE device disconnects """
-
+        self._set_health(False, "BLE device disconnected")
         logger.info("BLE device has disconnected")
         self.__cancel_signal.done()
 
@@ -98,7 +99,7 @@ class BleDeviceConnection:
             self.__health.pop("bluetooth_error", None)
         else:
             self.__health["bluetooth_error"] = message
-            logger.warning(message)
+            logger.info(message)
 
 
     async def _device_init_and_loop(self):
@@ -296,18 +297,21 @@ class BleDeviceConnection:
 
         data = bytes([0x10, 0x27, 0x0])
         result = await self._request_configuration_data(client, UUIDs.DEVICE_NEXT_UUID, data)
-        logger.info("Response: %s, expected: 00102701010001", result.hex())
-        # expected result = 00102701010001
+        expected_result = "00102701010001"
+        if (expected_result != result.hex()):
+            logger.info("Response: %s, expected: 00102701010001", result.hex())
 
         data = bytes([0xCA, 0x0F, 0x0])
+        expected_result = "00ca0f01010000"
         result = await self._request_configuration_data(client, UUIDs.DEVICE_NEXT_UUID, data)
-        logger.info("Response: %s, expected: 00ca0f01010000", result.hex())
-        # expected result = 00ca0f01010000
+        if (expected_result != result.hex()):
+            logger.info("Response: %s, expected: %s", result.hex(), expected_result)
 
         data = bytes([0xC8, 0x0F, 0x0])
         result = await self._request_configuration_data(client, UUIDs.DEVICE_NEXT_UUID, data)
-        logger.info("Response: %s, expected: 00c80f01040000000000", result.hex())
-        # expected result = 00c80f01040000000000
+        expected_result = "00c80f01040000000000"
+        if (expected_result != result.hex()):
+            logger.info("Response: %s, expected: %s", result.hex(), expected_result)
 
     def update_engine_params(self, engine_params):
         """Update parameters with new values"""
@@ -352,11 +356,14 @@ class BleDeviceConnection:
                 decoder = ConfigDecoder()
                 decoder.add(result_data)
                 engine_parameters = decoder.combine_and_parse_data()
-                logger.info("Device parameters: %s", engine_parameters)
+                try:
+                    logger.info("Device parameters: %s", json.dumps(engine_parameters))
+                except Exception as e:
+                    logger.warning("Unable to serialize engine parameters: %s", e)
                 return engine_parameters
             
         except TimeoutError:
-            logger.debug("timeout waiting for configuration data to return")
+            logger.info("timeout waiting for configuration data to return")
             return None
 
 
