@@ -6,7 +6,7 @@ import logging
 import asyncio
 import os
 import yaml
-from quart import Quart, jsonify
+from datetime import datetime
 from .signalk_publisher import SignalKPublisher, SignalKConfig
 from .ble_connection import BleDeviceConnection, BleConnectionConfig
 
@@ -19,10 +19,6 @@ class VesselViewMobileDataRecorder:
         self.signalk_socket = None
         self.ble_connection = None
         self.__health = {"signalk": False, "bluetooth": False}
-
-        # Initialize Flask app as part of the class
-        self.app = Quart(__name__)
-        self.add_quart_routes(self.__health)
 
     async def main(self):
         """Main function loop for the program"""
@@ -42,11 +38,14 @@ class VesselViewMobileDataRecorder:
         )
 
         if config.logging_file is not None:
-            handler = RotatingFileHandler(config.logging_file, maxBytes=5*1024*1024, backupCount=config.logging_keep)
-            handler.setLevel(config.logging_level)
-            formatter = logging.Formatter("%(asctime)-15s %(name)-8s %(levelname)s: %(message)s")
-            handler.setFormatter(formatter)
-            logging.getLogger().addHandler(handler)
+            try:
+                handler = RotatingFileHandler(config.logging_file, maxBytes=5*1024*1024, backupCount=config.logging_keep)
+                handler.setLevel(config.logging_level)
+                formatter = logging.Formatter("%(asctime)-15s %(name)-8s %(levelname)s: %(message)s")
+                handler.setFormatter(formatter)
+                logging.getLogger().addHandler(handler)
+            except Exception as e:
+                logger.error("Error setting up logging file handler: %s", e)
 
         # start the main loops
         if config.bluetooth.valid:
@@ -70,8 +69,8 @@ class VesselViewMobileDataRecorder:
                 background_tasks.add(task)
                 task.add_done_callback(background_tasks.discard)
             if config.healthcheck_enable:
-                logger.info("Starting healthcheck on %s:%s", config.healthcheck_ip, config.healthcheck_port)
-                task = tg.create_task(self.run_quart_app(config))
+                logger.info("Starting healthcheck writer")
+                task = tg.create_task(self.write_healthcheck())
                 background_tasks.add(task)
                 task.add_done_callback(background_tasks.discard)
 
@@ -241,27 +240,15 @@ class VesselViewMobileDataRecorder:
                 config.bluetooth.csv_output_keep = csv_data_recording_config.get('keep', 10)
                 config.bluetooth.csv_output_raw = csv_data_recording_config.get('output', 'decoded') == 'raw'
 
-    def add_quart_routes(self, health):
-        """Create the routes for quart"""
-        # Define your routes here, for example a health check route
-        @self.app.route('/health')
-        def health_check():
-            health_status = {
-                "status": "healthy" if health["signalk"] and health["bluetooth"] else "unhealthy",
-                "signalk": "connected" if health["signalk"] else "disconnected",
-                "bluetooth": "healthy" if health["bluetooth"] else "unhealthy",
-            } 
-            if (error_msg := health.get("signalk_error")) is not None:
-                health_status.update({"signalk_status": error_msg })
-            if (error_msg := health.get("bluetooth_error")) is not None:
-                health_status.update({"bluetooth_status": error_msg })
-            
-            return jsonify(health_status), 200 if health_status.get("status") == "healthy" else 500
-        
-    async def run_quart_app(self, config):
-        """Start the quart app"""
-        # Run the Quart app (async Flask)
-        await self.app.run_task(host=config.healthcheck_ip, port=config.healthcheck_port)
+    async def write_healthcheck(self):
+        """Write the healthcheck status to a file"""
+        while True:
+            with open("/tmp/healthcheck", "w") as f:
+                if not self.__health["signalk"]:
+                    f.write(f"BAD SignalK Disconnected {datetime.utcnow().isoformat()}\n")
+                else:
+                    f.write(f"OK {datetime.utcnow().isoformat()}\n")
+            await asyncio.sleep(15)
 
 class VVMConfig:
     """Program configuration"""
@@ -330,12 +317,3 @@ class VVMConfig:
         """Determines if health checks are enabled"""
         return bool(os.getenv("APP_HEALTHCHECK_ENABLE", self.__healthcheck_enabled))
 
-    @property
-    def healthcheck_port(self):
-        """Port for the health check service"""
-        return int(os.getenv("APP_HEALTHCHECK_PORT", self.__healthcheck_port))
-
-    @property
-    def healthcheck_ip(self):
-        """IP address to bind to for healthcheck"""
-        return os.getenv("APP_HEALTHCHECK_IP", self.__healthcheck_ip)

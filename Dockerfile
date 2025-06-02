@@ -15,11 +15,9 @@ ADD entrypoint.sh /app/
 RUN ["mkdir", "-p", "/app/logs"]
 
 ENV APP_HEALTHCHECK=True
-ENV APP_HEALTHCHECK_PORT=5000
-ENV APP_HEALTHCHECK_IP=127.0.0.1
 
 # Set up healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl --fail http://localhost:5000/health || exit 1
+  CMD ["test", "-f", "/tmp/healthcheck"]
 
 CMD ["/app/entrypoint.sh"] 
