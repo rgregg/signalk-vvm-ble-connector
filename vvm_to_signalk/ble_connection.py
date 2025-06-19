@@ -222,7 +222,7 @@ class BleDeviceConnection:
             self._trigger_event_listener(uuid, decoded_value, False)
             self._convert_and_publish_data(matching_param, decoded_value)
 
-            logger.info("Received data for %s with value %s", matching_param.signalk_path, decoded_value)
+            logger.debug("Received data for %s with value %s", matching_param.signalk_path, decoded_value)
             try:
                 if self.csv_writer is not None:
                     if self.__config.csv_output_raw:
@@ -356,10 +356,6 @@ class BleDeviceConnection:
                 decoder = ConfigDecoder()
                 decoder.add(result_data)
                 engine_parameters = decoder.combine_and_parse_data()
-                try:
-                    logger.info("Device parameters: %s", json.dumps(engine_parameters))
-                except Exception as e:
-                    logger.warning("Unable to serialize engine parameters: %s", e)
                 return engine_parameters
             
         except TimeoutError:
@@ -537,7 +533,7 @@ class Conversion:
         if param == EngineParameterType.OIL_PRESSURE:
             return Conversion.decapascals_to_pascals
         
-        logger.error("Unknown conversion for unknown datatype: %s", param)
+        logger.debug("Unknown conversion for unknown datatype: %s", param)
         return Conversion.identity_function
 
 class BleConnectionConfig:

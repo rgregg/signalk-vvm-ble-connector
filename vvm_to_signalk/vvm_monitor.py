@@ -47,6 +47,8 @@ class VesselViewMobileDataRecorder:
             except Exception as e:
                 logger.error("Error setting up logging file handler: %s", e)
 
+        logger.info("*** VVM_Monitor started ***")
+
         # start the main loops
         if config.bluetooth.valid:
             self.ble_connection = BleDeviceConnection(config.bluetooth, self.publish_data_func, self.__health)
@@ -74,7 +76,7 @@ class VesselViewMobileDataRecorder:
                 background_tasks.add(task)
                 task.add_done_callback(background_tasks.discard)
 
-        logger.debug("All event loops are completed")
+        logger.info("*** VVM_Monitor finished ***")
 
     async def publish_data_func(self, path, value):
         """Callback for publishing data to the websocket"""

@@ -22,6 +22,7 @@ class SignalKPublisher:
         self.__auth_token = None
         self.__task_group = None
         self.__health = health_status
+        self.__should_log_connection_down = True
 
     @property
     def websocket_url(self):
@@ -194,12 +195,14 @@ class SignalKPublisher:
             delta = self.generate_delta(path, value)
             try:
                 await self.__websocket.send(json.dumps(delta))
+                self.__should_log_connection_down = True    # Reset the flag to log connection down only once
             except websockets.exceptions.ConnectionClosed:
                 logger.warning("Websocket connection closed. Data delta may not have been published.")
             except Exception as e:
                 logger.warning("Error sending on websocket: %s", e)
-        else:
-            logger.warning("Websocket connection closed. No data was sent.")
+        elif self.__should_log_connection_down:
+                logger.debug("Websocket connection closed. No data was sent.")
+                self.__should_log_connection_down = False
 
 class SignalKConfig:
     """Defines the configuration for the SignalK server"""

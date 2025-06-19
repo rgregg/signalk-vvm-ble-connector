@@ -87,7 +87,7 @@ class ConfigDecoder:
             next_param, parsing_data = ConfigDecoder.pop_bytes(parsing_data, 4)
             param_id = int.from_bytes(next_param[:2])
             header_id = int.from_bytes(next_param[2:])
-            logger.info("Parameter: %s with header: %s", param_id, header_id)
+            logger.debug("Parameter: %s with header: %s", param_id, header_id)
             found_params.append(EngineParameter(param_id, header_id))
 
             remaining_bytes = len(parsing_data)
