@@ -210,7 +210,7 @@ class SignalKConfig:
         self.__websocket_url = None
         self.__username = None
         self.__password = None
-        self.__retry_interval = 30
+        self.__retry_interval = 5
 
     @property
     def websocket_url(self):
