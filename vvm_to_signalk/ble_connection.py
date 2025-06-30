@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import json
 
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -24,7 +23,6 @@ class BleDeviceConnection:
         logger.debug("Created a new instance of decoder class")
         self.__config = config
 
-        self.__device = None
         self.__abort = False
         self.__cancel_signal = asyncio.Future()
         self.__publish_delta_func = publish_delta_func
@@ -67,8 +65,8 @@ class BleDeviceConnection:
     def cb_disconnected(self, _client: BleakClient):
         """ Handle when the BLE device disconnects """
         self._set_health(False, "BLE device disconnected")
-        logger.info("BLE device has disconnected")
-        self.__cancel_signal.done()
+        # exit the scan loop so we can go back to device discovery
+        self.__cancel_signal.done() 
 
 
     async def run(self, task_group):
@@ -77,35 +75,41 @@ class BleDeviceConnection:
         
         while not self.__abort:
             # Loop on device discovery
-            while self.__device is None:
-                await self._scan_for_device()
+            logger.info("Scanning for BLE devices")
+            found_device = None
+            while found_device is None:
+                found_device = await self._scan_for_device()
                 if self.__abort:
                     self._set_health(False, "device discovery scan aborted")
+                    logger.info("Discovery scan aborted")
                     return
+                elif found_device != None:
+                    break
 
             # Run until the device is disconnected or the process is cancelled
-            logger.info("Found BLE device %s", self.__device)
+            logger.info("Found BLE device %s", found_device)
             
             # configure the device and loop until abort or disconnect
-            await self._device_init_and_loop()
+            await self._device_init_and_loop(found_device)
 
-            # reset our internal device to none since we are not connected
-            self.__device = None
+            logger.info("Returning to scan loop")
+
 
     def _set_health(self, value: bool, message: str = None):
         """Sets the health of the BLE connection"""
         self.__health["bluetooth"] = value
         if message is None:
             self.__health.pop("bluetooth_error", None)
+            logger.info("bluetooth_error - no message")
         else:
             self.__health["bluetooth_error"] = message
             logger.info(message)
 
 
-    async def _device_init_and_loop(self):
+    async def _device_init_and_loop(self, device):
         """Initalize BLE device and loop receiving data"""
         try:
-            async with BleakClient(self.__device,
+            async with BleakClient(device,
                                     disconnected_callback=self.cb_disconnected
                                     ) as client:
                 
@@ -127,6 +131,8 @@ class BleDeviceConnection:
                     # the operation is terminated
                 self.__cancel_signal = asyncio.Future()
                 await self.__cancel_signal
+                logger.info("Exiting ble scan loop")
+
         except Exception as e:
             self._set_health(False, f"Device error: {e}")
 
@@ -146,12 +152,11 @@ class BleDeviceConnection:
                 logger.debug("Found BLE device: %s", device)
                 if self.device_address is not None and device.address == self.device_address:
                     logger.info("Found matching device by address: %s", device)
-                    self.__device = device
-                    break
+                    return device
                 if self.device_name is not None and device.name == self.device_name:
                     logger.info("Found matching device by name: %s", device)
-                    self.__device = device
-                    break
+                    return device
+        return None
 
     def _configure_csv_output(self, engine_params):
         """
