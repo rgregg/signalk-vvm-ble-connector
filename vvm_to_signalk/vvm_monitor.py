@@ -1,14 +1,16 @@
 """Vessel View Mobile module"""
-from logging.handlers import RotatingFileHandler
 import argparse
-import signal
-import logging
 import asyncio
+import logging
 import os
-import yaml
+import signal
 from datetime import datetime
-from .signalk_publisher import SignalKPublisher, SignalKConfig
-from .ble_connection import BleDeviceConnection, BleConnectionConfig
+from logging.handlers import RotatingFileHandler
+
+import yaml
+
+from .ble_connection import BleConnectionConfig, BleDeviceConnection
+from .signalk_publisher import SignalKConfig, SignalKPublisher
 
 logger = logging.getLogger("vvm_monitor")
 
@@ -245,7 +247,7 @@ class VesselViewMobileDataRecorder:
     async def write_healthcheck(self):
         """Write the healthcheck status to a file"""
         while True:
-            with open("/tmp/healthcheck", "w") as f:
+            with open("/tmp/healthcheck", "w", encoding="utf-8") as f:
                 if not self.__health["signalk"]:
                     f.write(f"BAD SignalK Disconnected {datetime.utcnow().isoformat()}\n")
                 else:

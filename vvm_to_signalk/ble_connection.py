@@ -83,16 +83,18 @@ class BleDeviceConnection:
                     self._set_health(False, "device discovery scan aborted")
                     logger.info("Discovery scan aborted")
                     return
-                elif found_device != None:
+                elif found_device is not None:
+                    # We have a device!
+                    logger.info("Found BLE device %s", found_device)
                     break
 
             # Run until the device is disconnected or the process is cancelled
-            logger.info("Found BLE device %s", found_device)
+            logger.info("Starting device data loop")
             
             # configure the device and loop until abort or disconnect
             await self._device_init_and_loop(found_device)
 
-            logger.info("Returning to scan loop")
+            logger.info("Returning to device scan loop")
 
 
     def _set_health(self, value: bool, message: str = None):
@@ -114,6 +116,7 @@ class BleDeviceConnection:
                                     ) as client:
                 
                 self._set_health(True, "Connected to device")
+                self.__cancel_signal = asyncio.Future()
 
                 logger.debug("Retriving device identification metadata...")
                 await self._retrieve_device_info(client)
@@ -129,9 +132,9 @@ class BleDeviceConnection:
 
                     # run until the device is disconnected or
                     # the operation is terminated
-                self.__cancel_signal = asyncio.Future()
+                
                 await self.__cancel_signal
-                logger.info("Exiting ble scan loop")
+                logger.info("Cancel signal received - exiting data loop")
 
         except Exception as e:
             self._set_health(False, f"Device error: {e}")
