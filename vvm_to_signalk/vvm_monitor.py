@@ -77,7 +77,8 @@ class VesselViewMobileDataRecorder:
                 task = tg.create_task(self.write_healthcheck())
                 background_tasks.add(task)
                 task.add_done_callback(background_tasks.discard)
-
+        
+        # won't return until all tasks in the TaskGroup are finished
         logger.info("*** VVM_Monitor finished ***")
 
     async def publish_data_func(self, path, value):
