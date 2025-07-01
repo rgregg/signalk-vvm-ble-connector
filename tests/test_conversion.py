@@ -1,7 +1,6 @@
 """Tests for the unit conversion functions"""
 
 import unittest
-import math
 from vvm_to_signalk.conversion import Conversion
 
 
