@@ -31,6 +31,7 @@ class BleDeviceConnection:
         self.__csv_writer = None
         self.__task_group = None
         self.__health = health_status
+        self.__last_message_time = None
 
     @property
     def device_address(self):
@@ -66,7 +67,8 @@ class BleDeviceConnection:
         """ Handle when the BLE device disconnects """
         self._set_health(False, "BLE device disconnected")
         # exit the scan loop so we can go back to device discovery
-        self.__cancel_signal.done() 
+        if not self.__cancel_signal.done():
+            self.__cancel_signal.set_result(None) 
 
 
     async def run(self, task_group):
@@ -110,13 +112,14 @@ class BleDeviceConnection:
 
     async def _device_init_and_loop(self, device):
         """Initalize BLE device and loop receiving data"""
+        monitor_task = None
         try:
             async with BleakClient(device,
-                                    disconnected_callback=self.cb_disconnected
+                                    disconnected_callback=self.cb_disconnected,
+                                    timeout=self.__config.connection_timeout
                                     ) as client:
                 
                 self._set_health(True, "Connected to device")
-                self.__cancel_signal = asyncio.Future()
 
                 logger.debug("Retriving device identification metadata...")
                 await self._retrieve_device_info(client)
@@ -130,14 +133,36 @@ class BleDeviceConnection:
                 logger.info("Enabling data streaming from BLE device")
                 await self._set_streaming_mode(client, enabled=True)
 
-                    # run until the device is disconnected or
-                    # the operation is terminated
+                # Start the streaming monitor if a timeout is configured
+                if self.__config.streaming_timeout > 0:
+                    monitor_task = self.__task_group.create_task(self._monitor_streaming())
+
+                # run until the device is disconnected or
+                # the operation is terminated
                 
                 await self.__cancel_signal
                 logger.info("Cancel signal received - exiting data loop")
 
         except Exception as e:
             self._set_health(False, f"Device error: {e}")
+        finally:
+            if monitor_task:
+                monitor_task.cancel()
+            self.__cancel_signal = asyncio.Future()
+
+    async def _monitor_streaming(self):
+        """Monitors the streaming data and cancels the connection if it times out"""
+        while not self.__abort:
+            await asyncio.sleep(self.__config.streaming_timeout)
+            if self.__last_message_time is None:
+                continue
+
+            if (asyncio.get_event_loop().time() - self.__last_message_time) > self.__config.streaming_timeout:
+                logger.warning("Streaming data timed out. Disconnecting...")
+                self._set_health(False, "Streaming data timed out")
+                if not self.__cancel_signal.done():
+                    self.__cancel_signal.set_result(None)
+                break
 
     async def _scan_for_device(self):
         """Scan for BLE device with matching info"""
@@ -184,7 +209,8 @@ class BleDeviceConnection:
 
         logger.info("Disconnecting from bluetooth device...")
         self.__abort = True
-        self.__cancel_signal.done()  # cancels the loop if we have a device and disconnects
+        if not self.__cancel_signal.done():
+            self.__cancel_signal.set_result(None)  # cancels the loop if we have a device and disconnects
         logger.debug("completed close operations")
         self._set_health(False, "shutting down")
 
@@ -210,6 +236,8 @@ class BleDeviceConnection:
         """
         Handles BLE notifications and indications
         """
+
+        self.__last_message_time = asyncio.get_event_loop().time()
 
         #Simple notification handler which prints the data received
         uuid = characteristic.uuid
@@ -297,7 +325,6 @@ class BleDeviceConnection:
 
         # enable indiciations on 001
         await self._set_streaming_mode(client, enabled=False)
-        
 
         # Indicates which parameters are available on the device
         engine_params = await self._request_device_parameter_config(client)
@@ -554,6 +581,8 @@ class BleConnectionConfig:
         self.__csv_output_file = "./logs/data.csv"
         self.__csv_output_keep = 0
         self.__csv_output_format_raw = False
+        self.__connection_timeout = 10.0
+        self.__streaming_timeout = 10.0
 
     @property
     def device_address(self):
@@ -622,4 +651,22 @@ class BleConnectionConfig:
     @csv_output_raw.setter
     def csv_output_raw(self, value):
         self.__csv_output_format_raw = value
+
+    @property
+    def connection_timeout(self):
+        """Timeout for the BLE connection"""
+        return self.__connection_timeout
+
+    @connection_timeout.setter
+    def connection_timeout(self, value):
+        self.__connection_timeout = value
+
+    @property
+    def streaming_timeout(self):
+        """Timeout for the BLE streaming"""
+        return self.__streaming_timeout
+
+    @streaming_timeout.setter
+    def streaming_timeout(self, value):
+        self.__streaming_timeout = value
     

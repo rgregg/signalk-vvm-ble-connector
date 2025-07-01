@@ -238,6 +238,8 @@ class VesselViewMobileDataRecorder:
             config.bluetooth.device_address = ble_device_config.get('address')
             config.bluetooth.device_name = ble_device_config.get('name')
             config.bluetooth.retry_interval = ble_device_config.get('retry-interval-seconds', 30)
+            config.bluetooth.connection_timeout = ble_device_config.get('connection-timeout-seconds', 10.0)
+            config.bluetooth.streaming_timeout = ble_device_config.get('streaming-timeout-seconds', 10.0)
             if (csv_data_recording_config := ble_device_config.get('data-recording')) is not None:
                 config.bluetooth.csv_output_enabled = csv_data_recording_config.get('enabled', False)
                 config.bluetooth.csv_output_file = csv_data_recording_config.get('file')

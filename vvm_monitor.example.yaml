@@ -2,6 +2,8 @@ ble-device:
   address: 11:22:33:44:55:66
   name: "VVM 1234123123"
   retry-interval-seconds: 30
+  connection-timeout-seconds: 10
+  streaming-timeout-seconds: 10
   data-recording:
     enabled: true
     file: ./logs/data.csv
