@@ -10,7 +10,8 @@ from bleak.exc import BleakCharacteristicNotFoundError
 
 from .csv_writer import CSVWriter
 from .futures_queue import FuturesQueue
-from .config_decoder import EngineParameter, ConfigDecoder, EngineParameterType
+from .config_decoder import EngineParameter, ConfigDecoder
+from .conversion import Conversion
 
 logger = logging.getLogger(__name__)
 
@@ -510,66 +511,7 @@ class UUIDs:
     DEVICE_NEXT_UUID = "00000111-0000-1000-8000-ec55f9f5b963"
     DEVICE_201_UUID = "00000201-0000-1000-8000-ec55f9f5b963"
 
-class Conversion:
-    """Static conversion methods from hardware parameters to SI units"""
-    @staticmethod
-    def rpm_to_hertz(rpm):
-        """Convert from RPM to Hertz"""
-        return rpm / 60.0
-    
-    @staticmethod
-    def celsius_to_kelvin(celsius):
-        """Convert from Celsius to Kelvin"""
-        return celsius + 273.15
-    
-    @staticmethod
-    def minutes_to_seconds(minutes):
-        """Convert minutes to seconds"""
-        return minutes * 60
-    
-    @staticmethod
-    def centiliters_to_cubic_meters(cl_per_hour):
-        """Convert centiliters to cubmic meters"""
-        # Conversion factors
-        m3_per_cl = 0.00001
-        seconds_per_hour = 3600.0
-        
-        m3_per_second = cl_per_hour * m3_per_cl / seconds_per_hour
-        return m3_per_second
-    
-    @staticmethod
-    def decapascals_to_pascals(value):
-        """Convert decapascals to pascals"""
-        return value * 10
-    
-    @staticmethod
-    def millivolts_to_volts(value):
-        """Convert millivolts to volts"""
-        return value / 1000.0
-    
-    @staticmethod
-    def identity_function(value):
-        """No conversion, return the input"""
-        return value
-    
-    @staticmethod
-    def conversion_for_parameter_type(param: EngineParameterType):
-        """Provide the conversion function based on parameter type"""
-        if param == EngineParameterType.BATTERY_VOLTAGE:
-            return Conversion.millivolts_to_volts
-        if param == EngineParameterType.COOLANT_TEMPERATURE:
-            return Conversion.celsius_to_kelvin
-        if param == EngineParameterType.CURRENT_FUEL_FLOW:
-            return Conversion.centiliters_to_cubic_meters
-        if param == EngineParameterType.ENGINE_RPM:
-            return Conversion.rpm_to_hertz
-        if param == EngineParameterType.ENGINE_RUNTIME:
-            return Conversion.minutes_to_seconds
-        if param == EngineParameterType.OIL_PRESSURE:
-            return Conversion.decapascals_to_pascals
-        
-        logger.debug("Unknown conversion for unknown datatype: %s", param)
-        return Conversion.identity_function
+
 
 class BleConnectionConfig:
     """Configuration information for the BLE connection"""
