@@ -7,11 +7,9 @@ from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.uuids import normalize_uuid_16, uuid16_dict
 from bleak.exc import BleakCharacteristicNotFoundError
-
-from .csv_writer import CSVWriter
 from .futures_queue import FuturesQueue
-from .config_decoder import EngineParameter, ConfigDecoder
-from .conversion import Conversion
+from .config_decoder import EngineParameter, ConfigDecoder, EngineDataReceiver
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,19 +18,21 @@ class BleDeviceConnection:
 
     rescan_timeout_seconds = 10
 
-    def __init__(self, config: 'BleConnectionConfig', publish_delta_func, health_status):
+    def __init__(self, config: 'BleConnectionConfig', health_status):
         logger.debug("Created a new instance of decoder class")
         self.__config = config
-
         self.__abort = False
         self.__cancel_signal = asyncio.Future()
-        self.__publish_delta_func = publish_delta_func
         self.__notification_queue = FuturesQueue()
         self.__engine_parameters = {}
-        self.__csv_writer = None
         self.__task_group = None
         self.__health = health_status
         self.__last_message_time = None
+        self.__data_receivers = []
+
+    def accept_data_receiver(self, receiver: EngineDataReceiver) -> None:
+        """Add a new data receiver to the collection"""
+        self.__data_receivers.append(receiver)
 
     @property
     def device_address(self):
@@ -54,23 +54,12 @@ class BleDeviceConnection:
         """Set of parameters detected from the hardware device"""
         return self.__engine_parameters
     
-    @property
-    def csv_writer(self):
-        """Instance of a CSV output writer for data logging"""
-        return self.__csv_writer
-    
-    @csv_writer.setter
-    def csv_writer(self, value):
-        self.__csv_writer = value
-    
-   
-    def cb_disconnected(self, _client: BleakClient):
+    def device_disconnected(self, _client: BleakClient):
         """ Handle when the BLE device disconnects """
         self._set_health(False, "BLE device disconnected")
         # exit the scan loop so we can go back to device discovery
         if not self.__cancel_signal.done():
             self.__cancel_signal.set_result(None) 
-
 
     async def run(self, task_group):
         """Main run loop for detecting the BLE device and processing data from it"""
@@ -99,7 +88,6 @@ class BleDeviceConnection:
 
             logger.info("Returning to device scan loop")
 
-
     def _set_health(self, value: bool, message: str = None):
         """Sets the health of the BLE connection"""
         self.__health["bluetooth"] = value
@@ -116,7 +104,7 @@ class BleDeviceConnection:
         monitor_task = None
         try:
             async with BleakClient(device,
-                                    disconnected_callback=self.cb_disconnected,
+                                    disconnected_callback=self.device_disconnected,
                                     timeout=self.__config.connection_timeout
                                     ) as client:
                 
@@ -187,22 +175,6 @@ class BleDeviceConnection:
                     return device
         return None
 
-    def _configure_csv_output(self, engine_params):
-        """
-        Configure the CSV output logger if enabled - with the engine parameters the connected
-        device supports.
-        """
-        
-        if self.__config.csv_output_enabled:
-            fieldnames = [ "timestamp" ]
-            for param in engine_params:
-                if param.enabled:
-                    fieldnames.append(param.signalk_path)
-
-            self.csv_writer = CSVWriter(self.__config.csv_output_file, fieldnames)
-        else:
-            self.csv_writer = None
-
     async def close(self):
         """
         Disconnect from the BLE device and clean up anything we were doing to close down the loop
@@ -244,49 +216,27 @@ class BleDeviceConnection:
         uuid = characteristic.uuid
         logger.debug("Received notification from BLE - UUID: %s; data: %s", uuid, data.hex())
 
-        # If the notification is about an engine property, we need to push
-        # that information into the SignalK client as a property delta
-
         data_header = int.from_bytes(data[:2])
         logger.debug("data_header: %s", data_header)
 
-        matching_param = self.__engine_parameters.get(data_header)
-        logger.debug("Matching parameter: %s", matching_param)
-        
-        if matching_param:
-            # decode data from byte array to underlying value (remove header bytes and convert to int)
-            decoded_value = self._strip_header_and_convert_to_int(data)
-            self._trigger_event_listener(uuid, decoded_value, False)
-            self._convert_and_publish_data(matching_param, decoded_value)
+        # decode data from byte array to underlying value (remove header bytes and convert to int)
+        decoded_value = self._strip_header_and_convert_to_int(data)
 
-            logger.debug("Received data for %s with value %s", matching_param.signalk_path, decoded_value)
-            try:
-                if self.csv_writer is not None:
-                    if self.__config.csv_output_raw:
-                        self.csv_writer.update_property(matching_param.signalk_path, data.hex())
-                    else:
-                        self.csv_writer.update_property(matching_param.signalk_path, decoded_value)
-            except Exception as e:
-                logger.warning("Unable to write data to CSV: %s", e)
-        else:
-            logger.debug("Triggered default notification for UUID: %s with data %s", uuid, data.hex())
-            self._trigger_event_listener(uuid, data, True)
+        # Notify anyone listening we received data from the BLE device
+        self._trigger_event_listener(uuid, decoded_value, False)
 
-    def _convert_and_publish_data(self, engine_param: EngineParameter, decoded_value):
-        """
-        Converts data using the engine paramater conversion function into the signal k
-        expected format and then publishes the data using the singalK API connector
-        """
-
-        path = engine_param.signalk_path
-        convert_func = Conversion.conversion_for_parameter_type(engine_param.parameter_type)
-        output_value = convert_func(decoded_value)
-        if path:
-            logger.debug("Publishing value '%s' to path '%s'", output_value, path)
-            self._publish_to_signalk(path, output_value)
-        else:
-            logger.debug("No path found for parameter: '%s' with value '%s'", engine_param, output_value)
-
+        if matching_param := self.__engine_parameters.get(data_header):
+            logger.debug("Received data for %s with value %s", matching_param, decoded_value)
+            self._publish_data(matching_param, decoded_value)
+            
+            # try:
+            #     if self.csv_writer is not None:
+            #         if self.__config.csv_output_raw:
+            #             self.csv_writer.update_property(matching_param.signalk_path, data.hex())
+            #         else:
+            #             self.csv_writer.update_property(matching_param.signalk_path, decoded_value)
+            # except Exception as e:
+            #     logger.warning("Unable to write data to CSV: %s", e)
 
     def _strip_header_and_convert_to_int(self, data):
         """
@@ -295,25 +245,19 @@ class BleDeviceConnection:
         little endian byte order
         """
 
-
         logger.debug("Recieved data from device: %s" ,data)
         data = data[2:]  # remove the header bytes
         value = int.from_bytes(data, byteorder='little')
         logger.debug("Converted to value: %s", value)
         return value
 
-    def _publish_to_signalk(self, path, value):
-        """
-        Submits the latest information received from the device to the SignalK
-        websocket
-        """
+    def _publish_data(self, engine_param: EngineParameter, value):
+        """Submits the latest information received from the device to any registered receivers"""
+        logger.debug("Publishing engine data: %s, value %s", engine_param, value)
 
-        logger.debug("Publishing delta to path: '%s', value '%s'", path, value)
-        if self.__publish_delta_func is not None:
+        for receiver in self.__data_receivers:
             loop = asyncio.get_event_loop()
-            loop.create_task(self.__publish_delta_func(path, value))
-        else:
-            logger.info("Cannot publish to signalk")
+            loop.create_task(receiver.accept_engine_data(engine_param, value))
 
     async def _initalize_vvm(self, client: BleakClient):
         """
@@ -349,10 +293,11 @@ class BleDeviceConnection:
         if (expected_result != result.hex()):
             logger.info("Response: %s, expected: %s", result.hex(), expected_result)
 
-    def update_engine_params(self, engine_params):
+    def update_engine_params(self, engine_params: list[EngineParameter]) -> None:
         """Update parameters with new values"""
-        self._configure_csv_output(engine_params)
         self.__engine_parameters = { param.notification_header: param for param in engine_params }
+        for receiver in self.__data_receivers:
+            receiver.update_engine_parameters(engine_params)
 
     async def _set_streaming_mode(self, client: BleakClient, enabled):
         """
@@ -366,7 +311,7 @@ class BleDeviceConnection:
 
         await client.write_gatt_char(UUIDs.DEVICE_CONFIG_UUID, data, response=True)
 
-    async def _request_device_parameter_config(self, client: BleakClient):
+    async def _request_device_parameter_config(self, client: BleakClient) -> list[EngineParameter]:
         """
         Writes the request to send the parameter conmfiguration from the device
         via indications on characteristic DEVICE_CONFIG_UUID. This data is returned
@@ -515,16 +460,25 @@ class UUIDs:
 
 class BleConnectionConfig:
     """Configuration information for the BLE connection"""
-    def __init__(self):
+    def __init__(self, data: dict = None):
         self.__device_address = None
         self.__device_name = None
         self.__retry_interval = 30
-        self.__csv_output_enabled = False
-        self.__csv_output_file = "./logs/data.csv"
-        self.__csv_output_keep = 0
-        self.__csv_output_format_raw = False
         self.__connection_timeout = 10.0
         self.__streaming_timeout = 10.0
+        if data is not None:
+            self.read(data)
+
+    def read(self, data: dict):
+        """Read data from a dictionary"""
+        if data is None:
+            return
+        
+        self.__device_address = data.get('address', self.__device_address)
+        self.__device_name = data.get('name', self.__device_name)
+        self.__retry_interval = data.get('retry-interval-seconds', self.__retry_interval)
+        self.__connection_timeout = data.get('connection-timeout-seconds', self.__connection_timeout)
+        self.__streaming_timeout = data.get('streaming-timeout-seconds', self.__streaming_timeout)
 
     @property
     def device_address(self):
@@ -554,46 +508,10 @@ class BleConnectionConfig:
         self.__retry_interval = value
 
     @property
-    def csv_output_enabled(self):
-        """Enable output of data logging to CSV"""
-        return self.__csv_output_enabled
-    
-    @csv_output_enabled.setter
-    def csv_output_enabled(self, value):
-        self.__csv_output_enabled = value
-
-    @property
-    def csv_output_file(self):
-        """CSV output file"""
-        return self.__csv_output_file
-    
-    @csv_output_file.setter
-    def csv_output_file(self, value):
-        self.__csv_output_file = value
-
-    @property
-    def csv_output_keep(self):
-        """Number of CSV data files to keep"""
-        return self.__csv_output_keep
-    
-    @csv_output_keep.setter
-    def csv_output_keep(self, value):
-        self.__csv_output_keep = value
-
-    @property
     def valid(self):
         """Checks to make sure the parameters are valid"""
         return self.__device_name is not None or self.__device_address is not None
     
-    @property
-    def csv_output_raw(self):
-        """Controls if the raw data values or the converted values are written into the CSV file"""
-        return self.__csv_output_format_raw
-    
-    @csv_output_raw.setter
-    def csv_output_raw(self, value):
-        self.__csv_output_format_raw = value
-
     @property
     def connection_timeout(self):
         """Timeout for the BLE connection"""

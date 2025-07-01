@@ -6,8 +6,9 @@ import asyncio
 import math
 import sys
 from bleak import BleakGATTCharacteristic
-from vvm_to_signalk.ble_connection import BleDeviceConnection, BleConnectionConfig, Conversion
+from vvm_to_signalk.ble_connection import BleDeviceConnection, BleConnectionConfig
 from vvm_to_signalk.config_decoder import ConfigDecoder, EngineParameter, EngineParameterType
+from vvm_to_signalk.conversion import Conversion
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ class Test_DataDecoderTests(unittest.IsolatedAsyncioTestCase):
         config = BleConnectionConfig()
         config.device_name = "UnitTestRunner"
 
-        decoder = BleDeviceConnection(config, None, {})
+        decoder = BleDeviceConnection(config, {})
         self.configure_parameters_live(decoder)
         
         # Engine RPM
@@ -178,8 +179,7 @@ class Test_Conversions(unittest.TestCase):
         liters_per_hour = data_value / 100.0
         gallons_per_hour = liters_per_hour * 0.2642  # gallons per liter
         cubic_meters_per_second = gallons_per_hour / 951019.38844
-
-        Test_Conversions.compare_floats(Conversion.centiliters_to_cubic_meters(data_value), cubic_meters_per_second, 4)
+        Test_Conversions.compare_floats(Conversion.cl_per_hour_to_m3_per_sec(data_value), cubic_meters_per_second, 4)
 
 
     def test_pascals(self):
