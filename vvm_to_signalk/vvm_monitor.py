@@ -171,14 +171,21 @@ class VesselViewMobileDataRecorder:
         if (ble_device_name := os.getenv('VVM_DEVICE_NAME')) is not None:
             config.bluetooth.device_name = ble_device_name
 
-        if os.getenv("VVM_DEBUG"):
-            config.logging_level = logging.DEBUG
+        if (debug_env := os.getenv("VVM_DEBUG")) is not None:
+            if debug_env.lower() == "true" or debug_env == "1":
+                config.logging_level = logging.DEBUG
 
         if (username := os.getenv("VVM_USERNAME")) is not None:
             config.signalk.username = username
 
         if (password := os.getenv("VVM_PASSWORD")) is not None:
             config.signalk.password = password
+
+        if (healthcheck_env := os.getenv("APP_HEALTHCHECK_ENABLE")) is not None:
+            if healthcheck_env.lower() == "true" or healthcheck_env == "1":
+                config.healthcheck_enable = True
+            else:
+                config.healthcheck_enable = False
 
     def parse_config_file(self, config: 'VVMConfig'):
         """Parse configuration from a config file"""
@@ -267,7 +274,7 @@ class VVMConfig:
         self._logging_file = "./logs/vvm_monitor.log"
         self._logging_keep = 5
 
-        self.__healthcheck_enabled = "True"
+        self.__healthcheck_enabled = False
         self.__healthcheck_port = "5000"
         self.__healthcheck_ip = "127.0.0.1"
     
@@ -321,5 +328,9 @@ class VVMConfig:
     @property
     def healthcheck_enable(self):
         """Determines if health checks are enabled"""
-        return bool(os.getenv("APP_HEALTHCHECK_ENABLE", self.__healthcheck_enabled))
+        return self.__healthcheck_enabled
+    
+    @healthcheck_enable.setter
+    def healthcheck_enable(self, value):
+        self.__healthcheck_enabled = value
 
