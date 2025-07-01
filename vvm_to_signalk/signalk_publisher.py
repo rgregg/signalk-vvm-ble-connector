@@ -179,12 +179,8 @@ class SignalKPublisher:
             "context": "vessels.self",
             "updates": [
                 {
-                    "values": [
-                        {
-                            "path": path,
-                            "value": value
-                        }
-                    ]
+                    "source": { "label": "vvm_monitor" },
+                    "values": [{"path": path, "value": value}]
                 }
             ]
         }
