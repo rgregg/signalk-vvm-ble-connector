@@ -155,12 +155,15 @@ class SignalKPublisher:
             response_json = future.result()
             logger.debug("response_json: %s", response_json)
             if response_json is not None:
-                # Check to see if the response was successful
-                if response_json["statusCode"] == 200:
-                    logger.info("authenticated with singalk successfully")
-                    self.__auth_token = response_json["login"]["token"]
-                else:
-                    logger.critical("Unable to authenticate with SignalK server. Username or password may be incorrect.")
+                try:
+                    # Check to see if the response was successful
+                    if response_json.get("statusCode") == 200:
+                        logger.info("authenticated with singalk successfully")
+                        self.__auth_token = response_json.get("login", {}).get("token")
+                    else:
+                        logger.critical("Unable to authenticate with SignalK server. Username or password may be incorrect. Response: %s", response_json)
+                except Exception as e:
+                    logger.critical("Error processing authentication response: %s. Response: %s", e, response_json)
 
         self.__notifications.register_callback(login_request, process_login)
         await self.__websocket.send(json.dumps(data))
