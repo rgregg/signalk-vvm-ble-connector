@@ -44,22 +44,23 @@ class VesselViewMobileDataRecorder:
 
         # start the main loops
         if config.bluetooth.valid:
-            self.__ble_connection = BleDeviceConnection(config.bluetooth, self.publish_data_func, self.__health)
+            self.__ble_connection = BleDeviceConnection(config.bluetooth, self.__health)
         else:
             logger.warning("Skipping bluetooth connection - configuration is invalid.")
             
         if config.signalk.valid:
             self.__signalk_socket = SignalKPublisher(config.signalk, self.__health)
+            if self.__ble_connection is not None:
+                self.__ble_connection.accept_data_receiver(self.__signalk_socket)
         else:
             logger.warning("Skipping signalk connection - configuration is invalid.")
 
         if config.csv.valid:
             self.__csv_writer = CsvWriter(config.csv)
+            if self.__ble_connection is not None:
+                self.__ble_connection.accept_data_receiver(self.__csv_writer)
         else:
             logger.warning("Skipping csv output - configuration is invalid.")
-
-        # configure csv output
-
 
         background_tasks = set()
         async with asyncio.TaskGroup() as tg:
@@ -271,19 +272,9 @@ class VVMConfig:
         self.csv.read(data.get('csv'))
 
         if (log_config := data.get('logging')) is not None:
-            if (level := log_config.get('level', "INFO")) is not None:
-                level = level.upper()
-                match(level):
-                    case "DEBUG":
-                        self.__logging_level = logging.DEBUG
-                    case "WARNING":
-                        self.__logging_level = logging.WARNING
-                    case "ERROR":
-                        self.__logging_level = logging.ERROR
-                    case "CRITICAL":
-                        self.__logging_level = logging.CRITICAL
-                    case _:
-                        self.__logging_level = logging.INFO
+            if (level_str := log_config.get('level')) is not None:
+                level_str = level_str.upper()
+                self._logging_level = getattr(logging, level_str, logging.INFO)
             else:
                 self.__logging_level = logging.INFO
 

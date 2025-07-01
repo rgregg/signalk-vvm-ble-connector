@@ -1,6 +1,6 @@
 """Outputs data in CSV format to storage"""
+import asyncio
 import csv
-import threading
 import logging
 from typing import Any
 from datetime import datetime
@@ -44,6 +44,7 @@ class CsvWriter:
             self.__data[key] = None
         self.__fieldnames = fieldnames
 
+    # pylint: disable=consider-using-with
     def open_output_file(self) -> bool:
         """Open the output file and logger, closing any existing open file"""
         
@@ -59,7 +60,7 @@ class CsvWriter:
 
         if self.__config.enabled:
             try:
-                self.__output_stream = open(self.__config.filename(), 'a', newline='', encoding="utf-8")
+                self.__output_stream = open(self.__config.filename, 'a', newline='', encoding="utf-8")
                 self.__writer = csv.DictWriter(self.__output_stream, fieldnames=self.__fieldnames)
                 self.__writer.writeheader()
                 self.__wrote_fieldnames = True
@@ -80,17 +81,21 @@ class CsvWriter:
         self.__data[key] = value
         self.__data["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if self.__timer is None:
-            self.__timer = threading.Timer(self.__flush_interval, self.flush_queue_to_csv)
-            self.__timer.start()
+            self.__timer = asyncio.create_task(self._flush_timer_task())
 
     def key_for_param(self, param: EngineParameter):
         """Generate the unique string for an engine parameter"""
         return f"{param.engine_id}_{param.parameter_type.name}"
 
-    def flush_queue_to_csv(self):
+    async def _flush_timer_task(self):
+        """Flush a record to the CSV output file"""
+        await asyncio.sleep(self.__flush_interval)
+        await self.flush_queue_to_csv()
+        self.__timer = None
+
+    async def flush_queue_to_csv(self):
         """Flushes the queued data to the output file """
         self.__writer.writerow(self.__data)
-        self.__timer = None
 
     def __exit__(self, _exc_type, _exc_val, _exc_tb):
         self.flush_queue_to_csv()
@@ -119,7 +124,7 @@ class CsvWriterConfig:
         return self.__enabled
     
     @enabled.setter
-    def csv_output_enabled(self, value):
+    def enabled(self, value):
         self.__enabled = value
 
     @property
@@ -128,7 +133,7 @@ class CsvWriterConfig:
         return self.__filename
     
     @filename.setter
-    def csv_output_file(self, value):
+    def filename(self, value):
         self.__filename = value
 
     @property

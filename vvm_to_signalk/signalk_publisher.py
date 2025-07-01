@@ -192,8 +192,7 @@ class SignalKPublisher:
     
     def convert_value(self, param: EngineParameter, value):
         """Converts the data from an engine parameter into the format for SignalK"""
-        conversion_func = Conversion.conversion_for_parameter_type(param.parameter_type)
-        if conversion_func is None:
+        if (conversion_func := Conversion.conversion_for_parameter_type(param.parameter_type)) is None:
             logger.warning("No conversion function specified for %s", param.parameter_type.name)
             return value
         

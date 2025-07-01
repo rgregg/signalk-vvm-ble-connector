@@ -75,7 +75,8 @@ class BleDeviceConnection:
                     self._set_health(False, "device discovery scan aborted")
                     logger.info("Discovery scan aborted")
                     return
-                elif found_device is not None:
+                
+                if found_device is not None:
                     # We have a device!
                     logger.info("Found BLE device %s", found_device)
                     break
@@ -277,8 +278,7 @@ class BleDeviceConnection:
 
         data = bytes([0x10, 0x27, 0x0])
         result = await self._request_configuration_data(client, UUIDs.DEVICE_NEXT_UUID, data)
-        expected_result = "00102701010001"
-        if (expected_result != result.hex()):
+        if (expected_result := '00102701010001') != result.hex():
             logger.info("Response: %s, expected: 00102701010001", result.hex())
 
         data = bytes([0xCA, 0x0F, 0x0])
@@ -289,8 +289,7 @@ class BleDeviceConnection:
 
         data = bytes([0xC8, 0x0F, 0x0])
         result = await self._request_configuration_data(client, UUIDs.DEVICE_NEXT_UUID, data)
-        expected_result = "00c80f01040000000000"
-        if (expected_result != result.hex()):
+        if (expected_result := '00c80f01040000000000') != result.hex():
             logger.info("Response: %s, expected: %s", result.hex(), expected_result)
 
     def update_engine_params(self, engine_params: list[EngineParameter]) -> None:

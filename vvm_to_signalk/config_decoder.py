@@ -26,7 +26,10 @@ class ConfigDecoder:
     def has_all_data(self):
         """Indicates the configuration has all the data required"""
         if self.__has_all_data is None:
-            self.combine_and_parse_data()
+            try:
+                self.combine_and_parse_data()
+            except ValueError:
+                pass
 
         return self.__has_all_data
     
@@ -66,10 +69,14 @@ class ConfigDecoder:
         """Parse parameters to make sure they are valid"""
 
         # check to see if we have a valid header on the data
+        if not combined_data:
+            self.has_all_data = None
+            raise ValueError("No data to parse.")
+
         if combined_data[0] != 0x28:
             logger.warning("Unexpected data format - value doesn't start with 0x28: %s", combined_data.hex())
-        #     self.has_all_data = False
-        #     raise ValueError("Value of first byte is not expected value.")
+            self.has_all_data = False
+            raise ValueError("Value of first byte is not expected value.")
 
         # check to see if we have all the data we expect
         length_of_data = int.from_bytes(combined_data[1:2], byteorder='little')
@@ -175,7 +182,8 @@ class EngineParameter:
                 return False
             case _:
                 return True
-    
+
+# pylint: disable=missing-function-docstring
 class EngineDataReceiver(Protocol):
     """Protocol for classes that can receive engine data"""
     async def accept_engine_data(self, param: EngineParameter, value: Any) -> None:

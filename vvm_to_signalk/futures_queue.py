@@ -35,8 +35,7 @@ class FuturesQueue:
 
         if key in self.__queue:
             logger.debug("triggered future for %s with %s", key, value)
-            future = self.__queue.pop(key, None)
-            if future is None:
+            if (future := self.__queue.pop(key, None)) is None:
                 logger.debug("triggered future for %s but it was already removed", key)
                 return
             future.set_result(value)
@@ -46,14 +45,16 @@ class FuturesQueue:
 
     async def wait_for_data(self, key: str, timeout: int, default_value):
         """Waites for a key for a given timeout"""
+        if key not in self.__queue:
+            logger.debug("key not found in queue: %s, returning default value", key)
+            return default_value
+
+        future = self.__queue[key]
         try:
-            if key in self.__queue:
-                logger.debug("found future key in queue: %s", key)
-                future = self.__queue[key]
-                logger.debug("waiting for future to complete: %s", key)
-                data = await asyncio.wait_for(future, timeout)
-                logger.debug("future completed for key: %s", key)
-                return data
+            logger.debug("waiting for future to complete: %s", key)
+            data = await asyncio.wait_for(future, timeout)
+            logger.debug("future completed for key: %s", key)
+            return data
         except TimeoutError:
             logger.warning("timeout waiting for future: %s", key)
             return default_value
