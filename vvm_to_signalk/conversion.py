@@ -37,6 +37,11 @@ class Conversion:
         return value * 10
     
     @staticmethod
+    def convert_pressure_to_pascals(value):
+        """Convert unit from mercury to pscals"""
+        return value / 1.25
+    
+    @staticmethod
     def millivolts_to_volts(value):
         """Convert millivolts to volts"""
         # Conversionf actor: 1 millivolt = 0.0001 volts
@@ -50,18 +55,19 @@ class Conversion:
     @staticmethod
     def conversion_for_parameter_type(param: EngineParameterType):
         """Provide the conversion function based on parameter type"""
-        if param == EngineParameterType.BATTERY_VOLTAGE:
-            return Conversion.millivolts_to_volts
-        if param == EngineParameterType.COOLANT_TEMPERATURE:
-            return Conversion.celsius_to_kelvin
-        if param == EngineParameterType.CURRENT_FUEL_FLOW:
-            return Conversion.cl_per_hour_to_m3_per_sec
-        if param == EngineParameterType.ENGINE_RPM:
-            return Conversion.rpm_to_hertz
-        if param == EngineParameterType.ENGINE_RUNTIME:
-            return Conversion.minutes_to_seconds
-        if param == EngineParameterType.OIL_PRESSURE:
-            return Conversion.decapascals_to_pascals
-        
-        logger.debug("Unknown conversion for unknown datatype: %s", param)
-        return Conversion.identity_function
+        match param:
+            case EngineParameterType.BATTERY_VOLTAGE:
+                return Conversion.millivolts_to_volts
+            case EngineParameterType.COOLANT_TEMPERATURE:
+                return Conversion.celsius_to_kelvin
+            case EngineParameterType.CURRENT_FUEL_FLOW:
+                return Conversion.cl_per_hour_to_m3_per_sec
+            case EngineParameterType.ENGINE_RPM:
+                return Conversion.rpm_to_hertz
+            case EngineParameterType.ENGINE_RUNTIME:
+                return Conversion.minutes_to_seconds
+            case EngineParameterType.OIL_PRESSURE | EngineParameterType.WATER_PRESSURE:
+                return Conversion.convert_pressure_to_pascals
+            case _:            
+                logger.debug("Unknown conversion for unknown datatype: %s", param)
+                return Conversion.identity_function

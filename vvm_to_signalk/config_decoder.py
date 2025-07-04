@@ -129,7 +129,7 @@ class EngineParameterType(Enum):
     UNKNOWN_6 = 6
     UNKNOWN_7 = 7
     OIL_PRESSURE = 8
-    UNKNOWN_9 = 9
+    WATER_PRESSURE = 9
     UNKNOWN_A = 10
     UNKNOWN_B = 11
     UNKNOWN_C = 12
@@ -177,11 +177,7 @@ class EngineParameter:
    
     def is_unknown(self):
         """Returns True if the parameter is a known parameter."""
-        match self.parameter_type:
-            case EngineParameterType.ENGINE_RPM | EngineParameterType.BATTERY_VOLTAGE | EngineParameterType.COOLANT_TEMPERATURE | EngineParameterType.COOLANT_TEMPERATURE | EngineParameterType.CURRENT_FUEL_FLOW | EngineParameterType.ENGINE_RUNTIME | EngineParameterType.OIL_PRESSURE:
-                return False
-            case _:
-                return True
+        return "unknown" in self.parameter_type.name.lower()
 
 # pylint: disable=missing-function-docstring
 class EngineDataReceiver(Protocol):

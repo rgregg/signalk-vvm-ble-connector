@@ -216,6 +216,8 @@ class SignalKPublisher:
                 return f"propulsion.{engine_name}.fuel.rate"
             case EngineParameterType.OIL_PRESSURE:
                 return f"propulsion.{engine_name}.oilPressure"
+            case EngineParameterType.WATER_PRESSURE:
+                return f"propulsion.{engine_name}.waterPressure"
         
         logger.debug("Unable to map SignalK path for parameter type %s on engine %s.", param.parameter_type, param.engine_id)
         return f"propulsion.{engine_name}.{param.parameter_type.name}"
