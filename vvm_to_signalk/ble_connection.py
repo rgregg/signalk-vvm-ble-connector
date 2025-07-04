@@ -3,6 +3,7 @@
 import asyncio
 import logging
 
+from .conversion import Conversion
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.uuids import normalize_uuid_16, uuid16_dict
@@ -217,27 +218,35 @@ class BleDeviceConnection:
         uuid = characteristic.uuid
         logger.debug("Received notification from BLE - UUID: %s; data: %s", uuid, data.hex())
 
+        # If the notification is about an engine property, we need to push
+        # that information into the SignalK client as a property delta
+
         data_header = int.from_bytes(data[:2])
         logger.debug("data_header: %s", data_header)
 
-        # decode data from byte array to underlying value (remove header bytes and convert to int)
-        decoded_value = self._strip_header_and_convert_to_int(data)
+        matching_param = self.__engine_parameters.get(data_header)
+        logger.debug("Matching parameter: %s", matching_param)
+        
+        if matching_param:
+            # decode data from byte array to underlying value (remove header bytes and convert to int)
+            decoded_value = self._strip_header_and_convert_to_int(data)
+            self._trigger_event_listener(uuid, decoded_value, False)
+            self._convert_and_publish_data(matching_param, decoded_value)
 
-        # Notify anyone listening we received data from the BLE device
-        self._trigger_event_listener(uuid, decoded_value, False)
+            logger.debug("Received data for %s with value %s", matching_param.signalk_path, decoded_value)
+        else:
+            logger.debug("Triggered default notification for UUID: %s with data %s", uuid, data.hex())
+            self._trigger_event_listener(uuid, data, True)
 
-        if matching_param := self.__engine_parameters.get(data_header):
-            logger.debug("Received data for %s with value %s", matching_param, decoded_value)
-            self._publish_data(matching_param, decoded_value)
-            
-            # try:
-            #     if self.csv_writer is not None:
-            #         if self.__config.csv_output_raw:
-            #             self.csv_writer.update_property(matching_param.signalk_path, data.hex())
-            #         else:
-            #             self.csv_writer.update_property(matching_param.signalk_path, decoded_value)
-            # except Exception as e:
-            #     logger.warning("Unable to write data to CSV: %s", e)
+    def _convert_and_publish_data(self, engine_param: EngineParameter, decoded_value):
+        """
+        Converts data using the engine paramater conversion function into the signal k
+        expected format and then publishes the data using the singalK API connector
+        """
+
+        convert_func = Conversion.conversion_for_parameter_type(engine_param.parameter_type)
+        output_value = convert_func(decoded_value)
+        self._publish_data(engine_param, output_value)
 
     def _strip_header_and_convert_to_int(self, data):
         """
@@ -325,7 +334,6 @@ class BleDeviceConnection:
         
         # Requests the initial data dump from 001
         data = bytes([0x28, 0x00, 0x03, 0x01])
-        
         uuid = UUIDs.DEVICE_CONFIG_UUID
         keys = [0,1,2,3,4,5,6,7,8,9]        # data is returned as a series of 10 updates to the UUID
         
