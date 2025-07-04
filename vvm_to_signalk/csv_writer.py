@@ -27,7 +27,7 @@ class CsvWriter:
         
         # Create the CSV file and write the header
 
-    def update_parameters(self, parameters: list[EngineParameter]):
+    def update_engine_parameters(self, parameters: list[EngineParameter]):
         """Update the columns for the CSV output"""
         if parameters is None:
             return

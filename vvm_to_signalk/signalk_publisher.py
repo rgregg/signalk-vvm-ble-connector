@@ -222,10 +222,14 @@ class SignalKPublisher:
         logger.debug("Unable to map SignalK path for parameter type %s on engine %s.", param.parameter_type, param.engine_id)
         return f"propulsion.{engine_name}.{param.parameter_type.name}"
 
+    def update_engine_parameters(self, parameters: list[EngineParameter]):
+        """Get parameters from the BLE connection - not necessary for SignalK"""
+        pass
+
     async def accept_engine_data(self, param: EngineParameter, value: Any) -> None:
         """Publishes a delta to the SignalK API for the engine data"""
 
-        if not self.__config.send_unknown_parameters and param.is_unknown():
+        if not self.__config.send_unknown_parameters and param.is_unknupdate_engine_parametersown():
             # skip unknown parameters
             logger.debug("Skipping unknown parameter due to configuration setting")
             return

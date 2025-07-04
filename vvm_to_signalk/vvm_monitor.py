@@ -99,11 +99,11 @@ class VesselViewMobileDataRecorder:
             except Exception as e:
                 logger.error("Error setting up logging file handler: %s", e)
 
-    def update_engine_parameters(self, parameters: list[EngineParameter]) -> None:
-        """Update the known parameters for this engine"""
-        if self.__csv_writer is not None:
-            self.__csv_writer.update_parameters(parameters)
-            self.__csv_writer.open_output_file()
+    # def update_engine_parameters(self, parameters: list[EngineParameter]) -> None:
+    #     """Update the known parameters for this engine"""
+    #     if self.__csv_writer is not None:
+    #         self.__csv_writer.update_parameters(parameters)
+    #         self.__csv_writer.open_output_file()
 
     async def publish_data_func(self, param:EngineParameter, value):
         """Callback for publishing data to the websocket"""
