@@ -12,6 +12,7 @@ from .config_decoder import EngineParameter, ConfigDecoder, EngineDataReceiver
 
 
 logger = logging.getLogger(__name__)
+BLE_TIMEOUT = 30
 
 class BleDeviceConnection:
     """Handles the connection to the BLE hardware device"""
@@ -105,8 +106,7 @@ class BleDeviceConnection:
         monitor_task = None
         try:
             async with BleakClient(device,
-                                    disconnected_callback=self.device_disconnected,
-                                    timeout=self.__config.connection_timeout
+                                    disconnected_callback=self.device_disconnected
                                     ) as client:
                 
                 self._set_health(True, "Connected to device")
@@ -274,7 +274,10 @@ class BleDeviceConnection:
 
         # Indicates which parameters are available on the device
         engine_params = await self._request_device_parameter_config(client)
-        self.update_engine_params(engine_params)
+        if engine_params is not None:
+            self.update_engine_params(engine_params)
+        else:
+            logging.warning("No engine parameters were received. Will continue to try to connect.")
 
         data = bytes([0x10, 0x27, 0x0])
         result = await self._request_configuration_data(client, UUIDs.DEVICE_NEXT_UUID, data)
@@ -329,7 +332,7 @@ class BleDeviceConnection:
         future_data = [self.future_data_for_uuid(uuid, key) for key in keys]
 
         try:
-            async with asyncio.timeout(10):
+            async with asyncio.timeout(BLE_TIMEOUT):
                 await client.write_gatt_char(uuid, data, response=True)
                 result_data = await asyncio.gather(*future_data)
 
@@ -362,7 +365,7 @@ class BleDeviceConnection:
         # return that data to the caller here.
 
         try:
-            async with asyncio.timeout(5):
+            async with asyncio.timeout(BLE_TIMEOUT):
                 result = await future_data_result
                 logger.debug("received future data %s on %s", result.hex(), uuid)
                 return result
