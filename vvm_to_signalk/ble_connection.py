@@ -233,7 +233,7 @@ class BleDeviceConnection:
             self._trigger_event_listener(uuid, decoded_value, False)
             self._convert_and_publish_data(matching_param, decoded_value)
 
-            logger.debug("Received data for %s with value %s", matching_param.signalk_path, decoded_value)
+            logger.debug("Received data for %s with value %s", matching_param, decoded_value)
         else:
             logger.debug("Triggered default notification for UUID: %s with data %s", uuid, data.hex())
             self._trigger_event_listener(uuid, data, True)
