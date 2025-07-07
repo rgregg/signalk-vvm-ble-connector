@@ -229,7 +229,7 @@ class SignalKPublisher:
     async def accept_engine_data(self, param: EngineParameter, value: Any) -> None:
         """Publishes a delta to the SignalK API for the engine data"""
 
-        if not self.__config.send_unknown_parameters and param.is_unknupdate_engine_parametersown():
+        if not self.__config.send_unknown_parameters and param.is_unknown():
             # skip unknown parameters
             logger.debug("Skipping unknown parameter due to configuration setting")
             return
