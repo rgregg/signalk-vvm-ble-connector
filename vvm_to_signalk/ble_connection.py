@@ -281,8 +281,7 @@ class BleDeviceConnection:
         await self._set_streaming_mode(client, enabled=False)
 
         # Indicates which parameters are available on the device
-        engine_params = await self._request_device_parameter_config(client)
-        if engine_params is not None:
+        if (engine_params := await self._request_device_parameter_config(client)) is not None:
             self.update_engine_params(engine_params)
         else:
             logging.warning("No engine parameters were received. Will continue to try to connect.")

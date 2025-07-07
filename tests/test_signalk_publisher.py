@@ -1,9 +1,9 @@
 """Tests for the SignalK Publisher"""
 
 import unittest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import patch, AsyncMock
 from vvm_to_signalk.signalk_publisher import SignalKPublisher, SignalKConfig
-from vvm_to_signalk.config_decoder import EngineParameter, EngineParameterType
+from vvm_to_signalk.config_decoder import EngineParameter
 
 class TestSignalKPublisher(unittest.IsolatedAsyncioTestCase):
     """Test the SignalK Publisher"""
