@@ -3,14 +3,13 @@
 import asyncio
 import logging
 
-from .conversion import Conversion
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.uuids import normalize_uuid_16, uuid16_dict
 from bleak.exc import BleakCharacteristicNotFoundError
 from .futures_queue import FuturesQueue
 from .config_decoder import EngineParameter, ConfigDecoder, EngineDataReceiver
-
+from .conversion import Conversion
 
 logger = logging.getLogger(__name__)
 BLE_TIMEOUT = 30

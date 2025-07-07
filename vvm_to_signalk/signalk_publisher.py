@@ -224,7 +224,7 @@ class SignalKPublisher:
 
     def update_engine_parameters(self, parameters: list[EngineParameter]):
         """Get parameters from the BLE connection - not necessary for SignalK"""
-        pass
+        
 
     async def accept_engine_data(self, param: EngineParameter, value: Any) -> None:
         """Publishes a delta to the SignalK API for the engine data"""
