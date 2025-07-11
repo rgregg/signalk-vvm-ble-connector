@@ -1,9 +1,42 @@
 """Static unit conversion methods"""
 
 import logging
+import re
 from .config_decoder import EngineParameterType
 
 logger = logging.getLogger(__name__)
+
+class ConversionConfig:
+    """Configuration for parameter conversions"""
+    
+    def __init__(self, data: dict = None):
+        self.__conversions = {}
+        if data is not None:
+            self.read(data)
+    
+    def read(self, data: dict):
+        """Read conversion configurations from dictionary"""
+        if data is None:
+            return
+        
+        # Parse conversions for each parameter type
+        for param_name, formula in data.items():
+            try:
+                # Convert parameter name to EngineParameterType
+                param_type = EngineParameterType[param_name.upper()]
+                self.__conversions[param_type] = formula
+                logger.debug("Loaded conversion for %s: %s", param_name, formula)
+            except KeyError:
+                logger.warning("Unknown parameter type in conversions config: %s", param_name)
+    
+    def get_conversion_formula(self, param_type: EngineParameterType) -> str:
+        """Get the conversion formula for a parameter type"""
+        return self.__conversions.get(param_type)
+    
+    def has_conversion(self, param_type: EngineParameterType) -> bool:
+        """Check if a conversion is configured for this parameter type"""
+        return param_type in self.__conversions
+
 
 class Conversion:
     """Static conversion methods from hardware parameters to SI units"""
@@ -51,6 +84,46 @@ class Conversion:
     def identity_function(value):
         """No conversion, return the input"""
         return value
+    
+    @staticmethod
+    def safe_eval_formula(formula: str, value: float) -> float:
+        """Safely evaluate a conversion formula with the given value"""
+        if formula is None:
+            return value
+        
+        # Only allow safe mathematical operations
+        allowed_names = {
+            "value": value,
+            "abs": abs,
+            "min": min,
+            "max": max,
+            "round": round,
+            "pow": pow,
+            "__builtins__": {},
+        }
+        
+        # Only allow safe characters (numbers, operators, parentheses, 'value', whitespace)
+        if not re.match(r'^[0-9+\-*/.() \t\nvalue]+$', formula):
+            logger.warning("Formula contains unsafe characters: %s", formula)
+            return value
+        
+        try:
+            result = eval(formula, allowed_names)
+            return float(result)
+        except Exception as e:
+            logger.warning("Error evaluating conversion formula '%s': %s", formula, e)
+            return value
+    
+    @staticmethod
+    def convert_with_config(param: EngineParameterType, value: float, config: ConversionConfig = None):
+        """Convert value using configuration or default conversion"""
+        if config and config.has_conversion(param):
+            formula = config.get_conversion_formula(param)
+            return Conversion.safe_eval_formula(formula, value)
+        else:
+            # Fall back to default conversion
+            conversion_func = Conversion.conversion_for_parameter_type(param)
+            return conversion_func(value)
     
     @staticmethod
     def conversion_for_parameter_type(param: EngineParameterType):

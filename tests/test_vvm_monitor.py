@@ -5,6 +5,7 @@ import os
 import logging
 from unittest.mock import patch
 from vvm_to_signalk.vvm_monitor import VVMConfig, VesselViewMobileDataRecorder
+from vvm_to_signalk.config_decoder import EngineParameterType
 
 class TestVVMConfig(unittest.TestCase):
     """Test the VVMConfig class"""
@@ -16,6 +17,7 @@ class TestVVMConfig(unittest.TestCase):
         self.assertEqual(config.logging_file, "./logs/vvm_monitor.log")
         self.assertEqual(config.logging_keep, 5)
         self.assertFalse(config.healthcheck_enable)
+        self.assertIsNotNone(config.conversions)
 
     def test_read_dict(self):
         """Test that the configuration is loaded correctly from a dictionary"""
@@ -33,6 +35,10 @@ class TestVVMConfig(unittest.TestCase):
                 'enabled': True,
                 'filename': '/tmp/test.csv'
             },
+            'conversions': {
+                'ENGINE_RPM': 'value / 50.0',
+                'COOLANT_TEMPERATURE': 'value + 273.15'
+            },
             'logging': {
                 'level': 'DEBUG',
                 'file': '/tmp/test.log',
@@ -47,6 +53,8 @@ class TestVVMConfig(unittest.TestCase):
         self.assertEqual(config.bluetooth.device_address, '00:11:22:33:44:55')
         self.assertTrue(config.csv.enabled)
         self.assertEqual(config.csv.filename, '/tmp/test.csv')
+        self.assertTrue(config.conversions.has_conversion(EngineParameterType.ENGINE_RPM))
+        self.assertEqual(config.conversions.get_conversion_formula(EngineParameterType.ENGINE_RPM), 'value / 50.0')
         self.assertEqual(config.logging_level, logging.DEBUG)
         self.assertEqual(config.logging_file, '/tmp/test.log')
         self.assertEqual(config.logging_keep, 10)

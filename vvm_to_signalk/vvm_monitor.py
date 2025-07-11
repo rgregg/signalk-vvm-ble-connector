@@ -13,6 +13,7 @@ from .ble_connection import BleConnectionConfig, BleDeviceConnection
 from .signalk_publisher import SignalKConfig, SignalKPublisher
 from .config_decoder import EngineParameter
 from .csv_writer import CsvWriter, CsvWriterConfig
+from .conversion import ConversionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class VesselViewMobileDataRecorder:
             logger.warning("Skipping bluetooth connection - configuration is invalid.")
             
         if config.signalk.valid:
-            self.__signalk_socket = SignalKPublisher(config.signalk, self.__health)
+            self.__signalk_socket = SignalKPublisher(config.signalk, self.__health, config.conversions)
             if self.__ble_connection is not None:
                 self.__ble_connection.accept_data_receiver(self.__signalk_socket)
         else:
@@ -244,6 +245,7 @@ class VVMConfig:
         self._ble_config = BleConnectionConfig()
         self._signalk_config = SignalKConfig()
         self._csv_config = CsvWriterConfig()
+        self._conversion_config = ConversionConfig()
 
         self._logging_level = logging.INFO
         self._logging_file = "./logs/vvm_monitor.log"
@@ -264,6 +266,7 @@ class VVMConfig:
         self.signalk.read(data.get('signalk'))
         self.bluetooth.read(data.get('ble-device'))
         self.csv.read(data.get('csv'))
+        self.conversions.read(data.get('conversions'))
 
         if (log_config := data.get('logging')) is not None:
             if (level_str := log_config.get('level')) is not None:
@@ -302,6 +305,15 @@ class VVMConfig:
     @csv.setter
     def csv(self, value):
         self._csv_config = value
+
+    @property
+    def conversions(self):
+        """Configuration properties for parameter conversions"""
+        return self._conversion_config
+    
+    @conversions.setter
+    def conversions(self, value):
+        self._conversion_config = value
 
     @property
     def logging_level(self):

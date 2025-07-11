@@ -17,5 +17,19 @@ csv:
   enabled: true
   filename: ./logs/data.csv
   interval: 1.0
+conversions:
+  # Optional conversion formulas for engine parameters
+  # SignalK will use these formulas, CSV always outputs raw values
+  # Use 'value' as the variable in formulas
+  ENGINE_RPM: "value / 60.0"                    # Convert RPM to Hz (default)
+  COOLANT_TEMPERATURE: "value + 273.15"         # Convert Celsius to Kelvin (default)
+  BATTERY_VOLTAGE: "value / 1000.0"             # Convert millivolts to volts (default)
+  ENGINE_RUNTIME: "value * 60"                  # Convert minutes to seconds (default)
+  CURRENT_FUEL_FLOW: "value * 2.77778e-9"       # Convert cL/h to m³/s (default)
+  OIL_PRESSURE: "value / 1.25"                  # Convert units to pascals (default)
+  WATER_PRESSURE: "value / 1.25"                # Convert units to pascals (default)
+  # Example custom conversions:
+  # ENGINE_RPM: "value / 50.0"                  # Custom RPM conversion
+  # COOLANT_TEMPERATURE: "value * 1.8 + 32"     # Convert to Fahrenheit instead
   
   

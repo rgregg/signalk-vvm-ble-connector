@@ -13,7 +13,7 @@ class TestSignalKPublisher(unittest.IsolatedAsyncioTestCase):
         self.config = SignalKConfig()
         self.config.websocket_url = "ws://localhost:3000/signalk/v1/stream"
         self.health_status = {}
-        self.publisher = SignalKPublisher(self.config, self.health_status)
+        self.publisher = SignalKPublisher(self.config, self.health_status, None)
 
     async def test_generate_delta(self):
         """Test that the delta message is generated correctly"""

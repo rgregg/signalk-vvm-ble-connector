@@ -9,15 +9,16 @@ import websockets
 
 from .futures_queue import FuturesQueue
 from .config_decoder import EngineParameter, EngineParameterType
-from .conversion import Conversion
+from .conversion import Conversion, ConversionConfig
 
 logger = logging.getLogger(__name__)
 
 class SignalKPublisher:
     """Class for publishing data to SignalK API"""
 
-    def __init__(self, config: 'SignalKConfig', health_status):
+    def __init__(self, config: 'SignalKConfig', health_status, conversion_config: ConversionConfig = None):
         self.__config = config
+        self.__conversion_config = conversion_config
         
         self.__websocket = None
         self.__socket_connected = False
@@ -188,11 +189,7 @@ class SignalKPublisher:
     
     def convert_value(self, param: EngineParameter, value):
         """Converts the data from an engine parameter into the format for SignalK"""
-        if (conversion_func := Conversion.conversion_for_parameter_type(param.parameter_type)) is None:
-            logger.warning("No conversion function specified for %s", param.parameter_type.name)
-            return value
-        
-        converted_value = conversion_func(value)
+        converted_value = Conversion.convert_with_config(param.parameter_type, value, self.__conversion_config)
         return converted_value
     
     def path_for_parameter(self, param: EngineParameter):
