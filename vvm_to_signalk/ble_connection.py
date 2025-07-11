@@ -9,7 +9,6 @@ from bleak.uuids import normalize_uuid_16, uuid16_dict
 from bleak.exc import BleakCharacteristicNotFoundError
 from .futures_queue import FuturesQueue
 from .config_decoder import EngineParameter, ConfigDecoder, EngineDataReceiver
-from .conversion import Conversion
 
 logger = logging.getLogger(__name__)
 BLE_TIMEOUT = 30
@@ -230,22 +229,12 @@ class BleDeviceConnection:
             # decode data from byte array to underlying value (remove header bytes and convert to int)
             decoded_value = self._strip_header_and_convert_to_int(data)
             self._trigger_event_listener(uuid, decoded_value, False)
-            self._convert_and_publish_data(matching_param, decoded_value)
+            self._publish_data(matching_param, decoded_value)
 
             logger.debug("Received data for %s with value %s", matching_param, decoded_value)
         else:
             logger.debug("Triggered default notification for UUID: %s with data %s", uuid, data.hex())
             self._trigger_event_listener(uuid, data, True)
-
-    def _convert_and_publish_data(self, engine_param: EngineParameter, decoded_value):
-        """
-        Converts data using the engine paramater conversion function into the signal k
-        expected format and then publishes the data using the singalK API connector
-        """
-
-        convert_func = Conversion.conversion_for_parameter_type(engine_param.parameter_type)
-        output_value = convert_func(decoded_value)
-        self._publish_data(engine_param, output_value)
 
     def _strip_header_and_convert_to_int(self, data):
         """
