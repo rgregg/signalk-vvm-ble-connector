@@ -3,9 +3,9 @@
 import logging
 from enum import Enum
 from collections.abc import Iterable
+from typing import Protocol, Any
 
 logger = logging.getLogger(__name__)
-
 
 class ConfigDecoder:
     """Decodes saved configuration data into objects"""
@@ -26,7 +26,10 @@ class ConfigDecoder:
     def has_all_data(self):
         """Indicates the configuration has all the data required"""
         if self.__has_all_data is None:
-            self.combine_and_parse_data()
+            try:
+                self.combine_and_parse_data()
+            except ValueError:
+                pass
 
         return self.__has_all_data
     
@@ -43,7 +46,7 @@ class ConfigDecoder:
     def engine_parameters(self, value):
         self.__parameters = value
 
-    def combine_and_parse_data(self):
+    def combine_and_parse_data(self) -> list['EngineParameter']:
         """Combine data received from the device into one package"""
         
         # sort known_data by the first byte
@@ -62,14 +65,18 @@ class ConfigDecoder:
 
         return self.parse_params(combined)
 
-    def parse_params(self, combined_data):
+    def parse_params(self, combined_data) -> list['EngineParameter']:
         """Parse parameters to make sure they are valid"""
 
         # check to see if we have a valid header on the data
+        if not combined_data:
+            self.has_all_data = None
+            raise ValueError("No data to parse.")
+
         if combined_data[0] != 0x28:
             logger.warning("Unexpected data format - value doesn't start with 0x28: %s", combined_data.hex())
-        #     self.has_all_data = False
-        #     raise ValueError("Value of first byte is not expected value.")
+            self.has_all_data = False
+            raise ValueError("Value of first byte is not expected value.")
 
         # check to see if we have all the data we expect
         length_of_data = int.from_bytes(combined_data[1:2], byteorder='little')
@@ -110,7 +117,6 @@ class ConfigDecoder:
         remaining_bytes = byte_array[num_bytes:]
         return popped_bytes, remaining_bytes
 
-
 class EngineParameterType(Enum):
     """Known parameter types for Vessel View"""
 
@@ -123,15 +129,13 @@ class EngineParameterType(Enum):
     UNKNOWN_6 = 6
     UNKNOWN_7 = 7
     OIL_PRESSURE = 8
-    UNKNOWN_9 = 9
+    WATER_PRESSURE = 9
     UNKNOWN_A = 10
     UNKNOWN_B = 11
     UNKNOWN_C = 12
     UNKNOWN_D = 13
     UNKNOWN_E = 14
     UNKNOWN_F = 15
-
-
 
 class EngineParameter:
     """Represents a single engine parameter and the decoded details"""
@@ -144,7 +148,7 @@ class EngineParameter:
         self.__parameter_type = EngineParameterType(parameter & 0xFF)
 
     def __str__(self):
-        return f"EngineParameter({self.parameter_id}, {self.notification_header}, {self.signalk_path})"
+        return f"EngineParameter(id={self.parameter_id}, header={self.notification_header}, type={self.parameter_type.name}, engine={self.engine_id})"
 
     @property
     def parameter_id(self):
@@ -170,29 +174,16 @@ class EngineParameter:
     def parameter_type(self):
         """Returns the parameter type"""
         return self.__parameter_type
-    
-    @property
-    def signalk_path(self):
-        """Returns the path in SignalK for this parameter"""
-        path = self.get_signalk_path()
-        return f"propulsion.{self.engine_id}.{path}"
-        
-    def get_signalk_path(self):
-        """Maps the engine parameter type to SignalK path component"""
-        if self.parameter_type == EngineParameterType.ENGINE_RPM:
-            return "revolutions"
-        if self.parameter_type == EngineParameterType.COOLANT_TEMPERATURE:
-            return "temperature"
-        if self.parameter_type == EngineParameterType.BATTERY_VOLTAGE:
-            return "alternatorVoltage"
-        if self.parameter_type == EngineParameterType.ENGINE_RUNTIME:
-            return "runTime"
-        if self.parameter_type == EngineParameterType.CURRENT_FUEL_FLOW:
-            return "fuel.rate"
-        if self.parameter_type == EngineParameterType.OIL_PRESSURE:
-            return "oilPressure"
-        
-        logger.debug("Unable to map SignalK path for parameter type %s on engine %s.", self.parameter_type, self.engine_id)
-        return self.parameter_type.name
+   
+    def is_unknown(self):
+        """Returns True if the parameter is a known parameter."""
+        return "unknown" in self.parameter_type.name.lower()
 
-    
+# pylint: disable=missing-function-docstring
+class EngineDataReceiver(Protocol):
+    """Protocol for classes that can receive engine data"""
+    async def accept_engine_data(self, param: EngineParameter, value: Any) -> None:
+        ...
+
+    def update_engine_parameters(self, parameters: list[EngineParameter]) -> None:
+        ...

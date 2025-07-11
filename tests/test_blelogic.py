@@ -3,10 +3,9 @@
 import logging
 import unittest
 import asyncio
-import math
 import sys
 from bleak import BleakGATTCharacteristic
-from vvm_to_signalk.ble_connection import BleDeviceConnection, BleConnectionConfig, Conversion
+from vvm_to_signalk.ble_connection import BleDeviceConnection, BleConnectionConfig
 from vvm_to_signalk.config_decoder import ConfigDecoder, EngineParameter, EngineParameterType
 
 logger = logging.getLogger(__name__)
@@ -93,7 +92,7 @@ class Test_DataDecoderTests(unittest.IsolatedAsyncioTestCase):
         config = BleConnectionConfig()
         config.device_name = "UnitTestRunner"
 
-        decoder = BleDeviceConnection(config, None, {})
+        decoder = BleDeviceConnection(config, {})
         self.configure_parameters_live(decoder)
         
         # Engine RPM
@@ -158,60 +157,7 @@ class Test_DataDecoderTests(unittest.IsolatedAsyncioTestCase):
             assert False
 
 
-class Test_Conversions(unittest.TestCase):
-    """Test unit conversions"""
 
-    def test_hertz(self):
-        """Test conversion to hertz"""
-        assert Conversion.rpm_to_hertz(60) == 1
-        assert Conversion.rpm_to_hertz(600) == 10
-        assert Conversion.rpm_to_hertz(900) == 15
-    
-    def test_kelvin(self):
-        """Test conversion to kelvin"""
-        assert Conversion.celsius_to_kelvin(0) == 273.15
-        assert Conversion.celsius_to_kelvin(100) == 373.15
-
-    def test_cubic_meters(self):
-        """Test conversion to cublic meters"""
-        data_value = 6325      # centiliters per hour
-        liters_per_hour = data_value / 100.0
-        gallons_per_hour = liters_per_hour * 0.2642  # gallons per liter
-        cubic_meters_per_second = gallons_per_hour / 951019.38844
-
-        Test_Conversions.compare_floats(Conversion.centiliters_to_cubic_meters(data_value), cubic_meters_per_second, 4)
-
-
-    def test_pascals(self):
-        """Test conversion to pascals"""
-        data_value = 27510
-        pascals = 275100
-        assert Conversion.decapascals_to_pascals(data_value) == pascals
-
-        psi_value = 40.0
-        convert_value = psi_value * 689.476
-        Test_Conversions.compare_floats(Conversion.decapascals_to_pascals(convert_value), 275790.4, 5)
-
-
-    def test_volts(self):
-        """Test conversion to volts"""
-        data_value = 1240
-        assert Conversion.millivolts_to_volts(data_value), 12.40
-
-    @staticmethod
-    def round_to_sigfigs(value, sigfigs):
-        """Round a value to a particular number of digits"""
-        if value == 0:
-            return 0
-        return round(value, sigfigs - int(math.floor(math.log10(abs(value)))) - 1)
-
-    @staticmethod
-    def compare_floats(a, b, sigfigs):
-        """Compare two floating point values"""
-        a_rounded = Test_Conversions.round_to_sigfigs(a, sigfigs)
-        b_rounded = Test_Conversions.round_to_sigfigs(b, sigfigs)
-        logger.info("%s == %s", a_rounded, b_rounded)
-        assert a_rounded == b_rounded
 
 if __name__ == "__main__":
     logging.basicConfig(stream = sys.stderr )
