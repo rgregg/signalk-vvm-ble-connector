@@ -25,12 +25,12 @@ class VesselViewMobileReceiver:
         self.__engine_id = "0"
         self.__signalk_root_path = "propulsion"
         self.__signalk_parameter_map = {
-            UUIDs.ENGINE_RPM_UUID: { "path": "revolutions", "convert": Conversion.rpm_to_hertz },
-            UUIDs.COOLANT_TEMPERATURE_UUID: { "path": "temperature", "convert": Conversion.celsius_to_kelvin  },
-            UUIDs.BATTERY_VOLTAGE_UUID: { "path": "alternatorVoltage", "convert": Conversion.millivolts_to_volts },
-            UUIDs.ENGINE_RUNTIME_UUID: { "path": "runTime", "convert": Conversion.minutes_to_seconds },
-            UUIDs.CURRENT_FUEL_FLOW_UUID: {"path": "fuel.rate", "convert": Conversion.centiliters_to_cubic_meters},
-            UUIDs.OIL_PRESSURE_UUID: { "path": "oilPressure", "convert": Conversion.decapascals_to_pascals },
+            UUIDs.ENGINE_RPM_UUID: { "path": "revolutions", "conversion_type": "rpm_to_hertz" },
+            UUIDs.COOLANT_TEMPERATURE_UUID: { "path": "temperature", "conversion_type": "celsius_to_kelvin"  },
+            UUIDs.BATTERY_VOLTAGE_UUID: { "path": "alternatorVoltage", "conversion_type": "millivolts_to_volts" },
+            UUIDs.ENGINE_RUNTIME_UUID: { "path": "runTime", "conversion_type": "minutes_to_seconds" },
+            UUIDs.CURRENT_FUEL_FLOW_UUID: {"path": "fuel.rate", "conversion_type": "centiliters_to_cubic_meters"},
+            UUIDs.OIL_PRESSURE_UUID: { "path": "oilPressure", "conversion_type": "decapascals_to_pascals" },
             UUIDs.UNK_105_UUID: {},
             UUIDs.UNK_108_UUID: {},
             UUIDs.UNK_109_UUID: {},
@@ -198,10 +198,10 @@ class VesselViewMobileReceiver:
 
     def convert_and_publish_data(self, uuid, decoded_value):
         options = self.__signalk_parameter_map[uuid]
-        if "convert" in options:
-            convert = options["convert"]
-            new_value = convert(decoded_value)
-            logger.debug("Converted value from %s to %s", decoded_value, new_value)
+        if "conversion_type" in options:
+            conversion_type = options["conversion_type"]
+            new_value = self.apply_conversion(conversion_type, decoded_value)
+            logger.debug("Converted value from %s to %s using %s", decoded_value, new_value, conversion_type)
         else:
             new_value = decoded_value
             logger.debug("No data conversion: %s", decoded_value)
@@ -212,6 +212,54 @@ class VesselViewMobileReceiver:
             self.publish_to_signalk(path, new_value)
         else:
             logger.debug(f"No path found for uuid: {uuid}")
+
+    def apply_conversion(self, conversion_type, value):
+        """Apply conversion using configurable factors or default conversion functions"""
+        
+        # Check if there's a custom conversion factor configured
+        config_factors = self.__config.conversion_factors
+        if conversion_type in config_factors:
+            factor_config = config_factors[conversion_type]
+            logger.debug(f"Using configured conversion for {conversion_type}: {factor_config}")
+            
+            # Handle different types of conversion configurations
+            if isinstance(factor_config, (int, float)):
+                # Simple multiplication factor
+                return value * factor_config
+            elif isinstance(factor_config, dict):
+                # More complex conversion with operations
+                operation = factor_config.get("operation", "multiply")
+                factor = factor_config.get("factor", 1.0)
+                offset = factor_config.get("offset", 0.0)
+                
+                if operation == "multiply":
+                    return value * factor + offset
+                elif operation == "divide":
+                    return value / factor + offset
+                elif operation == "add":
+                    return value + factor
+                elif operation == "subtract":
+                    return value - factor
+                else:
+                    logger.warning(f"Unknown conversion operation: {operation}")
+                    return value
+        
+        # Fall back to default conversion functions
+        if conversion_type == "rpm_to_hertz":
+            return Conversion.rpm_to_hertz(value)
+        elif conversion_type == "celsius_to_kelvin":
+            return Conversion.celsius_to_kelvin(value)
+        elif conversion_type == "millivolts_to_volts":
+            return Conversion.millivolts_to_volts(value)
+        elif conversion_type == "minutes_to_seconds":
+            return Conversion.minutes_to_seconds(value)
+        elif conversion_type == "centiliters_to_cubic_meters":
+            return Conversion.centiliters_to_cubic_meters(value)
+        elif conversion_type == "decapascals_to_pascals":
+            return Conversion.decapascals_to_pascals(value)
+        else:
+            logger.warning(f"Unknown conversion type: {conversion_type}")
+            return value
 
 
     """
@@ -503,6 +551,7 @@ class BleConnectionConfig:
         self.__csv_output_file = "./logs/data.csv"
         self.__csv_output_keep = 0
         self.__csv_output_format_raw = False
+        self.__conversion_factors = {}
 
     @property
     def device_address(self):
@@ -564,4 +613,12 @@ class BleConnectionConfig:
     @csv_output_raw.setter
     def csv_output_raw(self, value):
         self.__csv_output_format_raw = value
+
+    @property
+    def conversion_factors(self):
+        return self.__conversion_factors
+    
+    @conversion_factors.setter
+    def conversion_factors(self, value):
+        self.__conversion_factors = value
     

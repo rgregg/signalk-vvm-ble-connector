@@ -66,6 +66,20 @@ The filename must be `vvm_monitor.yaml`.
 Only the device address or name is required - if you provide both any device that matches either
 value will be used.
 
+#### Conversion Configuration
+
+You can now override the default conversion factors used to transform the raw sensor data into SignalK units. This allows you to experiment with different conversion logic in near-real time by simply changing the configuration file.
+
+Available conversion types:
+- `rpm_to_hertz`: Convert engine RPM to Hz (default: rpm / 60)
+- `celsius_to_kelvin`: Convert temperature to Kelvin (default: celsius + 273.15)
+- `millivolts_to_volts`: Convert voltage readings (default: millivolts / 1000)
+- `minutes_to_seconds`: Convert runtime (default: minutes * 60)
+- `centiliters_to_cubic_meters`: Convert fuel flow (default: complex calculation)
+- `decapascals_to_pascals`: Convert pressure (default: value * 10)
+
+You can specify either a simple multiplication factor or a more complex operation with factor and offset.
+
 ```yaml
 ble-device:
   address: 11:22:33:44:55:66
@@ -75,6 +89,20 @@ ble-device:
     enabled: true
     file: ./logs/data.csv
     keep: 0
+  conversions:
+    # Simple multiplication factor
+    rpm_to_hertz: 0.0167
+    
+    # Complex conversion with operation and offset
+    celsius_to_kelvin:
+      operation: add
+      factor: 273.15
+      offset: 0
+    
+    # Different operations available: multiply, divide, add, subtract
+    millivolts_to_volts:
+      operation: divide
+      factor: 1000
 signalk:
   websocket-url: ws://127.0.0.1:3000/signalk/v1/stream?subscribe=none
   username: admin

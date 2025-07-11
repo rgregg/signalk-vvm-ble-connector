@@ -183,6 +183,12 @@ class VesselViewMobileDataRecorder:
                         config.bluetooth.csv_output_file = csv_data_recording_config.get('file')
                         config.bluetooth.csv_output_keep = csv_data_recording_config.get('keep', 10)
                         config.bluetooth.csv_output_raw = csv_data_recording_config.get('output', 'decoded') == 'raw'
+                    
+                    # Parse conversion factors if present
+                    conversions_config = ble_device_config.get('conversions')
+                    if conversions_config is not None:
+                        config.bluetooth.conversion_factors = conversions_config
+                        logger.info(f"Loaded custom conversion factors: {conversions_config}")
 
                 signalk_config = data.get('signalk')
                 if signalk_config is not None:

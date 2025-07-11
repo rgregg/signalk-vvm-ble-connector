@@ -36,6 +36,86 @@ class BasicGATTCharacteristic(BleakGATTCharacteristic):
         return self.uuid
 
 
+class Test_ConfigurableConversions(unittest.IsolatedAsyncioTestCase):
+
+    async def test_custom_conversion_factors(self):
+        """Test that custom conversion factors work correctly"""
+        config = BleConnectionConfig()
+        config.device_name = "UnitTestRunner"
+        config.csv_output_enabled = False  # Disable CSV for tests
+        
+        # Configure custom conversion factors
+        config.conversion_factors = {
+            "rpm_to_hertz": 0.01,  # Simple multiplication factor
+            "celsius_to_kelvin": {
+                "operation": "add",
+                "factor": 300  # Custom Kelvin offset
+            },
+            "millivolts_to_volts": {
+                "operation": "divide", 
+                "factor": 500  # Different division factor
+            }
+        }
+        
+        decoder = VesselViewMobileReceiver(config, None)
+        
+        # Test simple multiplication factor
+        result = decoder.apply_conversion("rpm_to_hertz", 1000)
+        assert result == 10.0, f"Expected 10.0, got {result}"
+        
+        # Test addition operation
+        result = decoder.apply_conversion("celsius_to_kelvin", 25)
+        assert result == 325, f"Expected 325, got {result}"
+        
+        # Test division operation
+        result = decoder.apply_conversion("millivolts_to_volts", 12000)
+        assert result == 24.0, f"Expected 24.0, got {result}"
+        
+        # Test fallback to default conversion for unconfigured types
+        result = decoder.apply_conversion("minutes_to_seconds", 5)
+        assert result == 300, f"Expected 300, got {result}"
+
+    async def test_complex_conversion_with_offset(self):
+        """Test conversion with both factor and offset"""
+        config = BleConnectionConfig()
+        config.device_name = "UnitTestRunner"
+        config.csv_output_enabled = False
+        
+        config.conversion_factors = {
+            "rpm_to_hertz": {
+                "operation": "multiply",
+                "factor": 0.02,
+                "offset": 5
+            }
+        }
+        
+        decoder = VesselViewMobileReceiver(config, None)
+        
+        # Test: (1000 * 0.02) + 5 = 25
+        result = decoder.apply_conversion("rpm_to_hertz", 1000)
+        assert result == 25.0, f"Expected 25.0, got {result}"
+
+    async def test_default_conversions_unchanged(self):
+        """Test that default conversions still work when no custom factors are configured"""
+        config = BleConnectionConfig()
+        config.device_name = "UnitTestRunner"  
+        config.csv_output_enabled = False
+        
+        decoder = VesselViewMobileReceiver(config, None)
+        
+        # Test default RPM to Hz conversion
+        result = decoder.apply_conversion("rpm_to_hertz", 60)
+        assert result == 1.0, f"Expected 1.0, got {result}"
+        
+        # Test default Celsius to Kelvin
+        result = decoder.apply_conversion("celsius_to_kelvin", 0)
+        assert result == 273.15, f"Expected 273.15, got {result}"
+        
+        # Test default millivolts to volts
+        result = decoder.apply_conversion("millivolts_to_volts", 1000)
+        assert result == 1.0, f"Expected 1.0, got {result}"
+
+
 class Test_DataDecoderTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_notifications(self):
