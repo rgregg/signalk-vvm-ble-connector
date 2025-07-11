@@ -42,6 +42,7 @@ class Test_DataDecoderTests(unittest.IsolatedAsyncioTestCase):
 
         config = BleConnectionConfig()
         config.device_name = "UnitTestRunner"
+        config.csv_output_enabled = False
 
         decoder = VesselViewMobileReceiver(config, None)
         
