@@ -102,8 +102,10 @@ class Conversion:
             "__builtins__": {},
         }
         
-        # Only allow safe characters (numbers, operators, parentheses, 'value', whitespace)
-        if not re.match(r'^[0-9+\-*/.() \t\nvalue]+$', formula):
+        # Dynamically construct regex to allow safe characters and valid function names from allowed_names
+        allowed_identifiers = '|'.join(re.escape(key) for key in allowed_names.keys() if key.isidentifier())
+        safe_pattern = rf'^[0-9+\-*/.() \t\n]|({allowed_identifiers})+$'
+        if not re.match(safe_pattern, formula):
             logger.warning("Formula contains unsafe characters: %s", formula)
             return value
         
