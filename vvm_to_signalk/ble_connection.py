@@ -397,7 +397,7 @@ class BleDeviceConnection:
                 logger.debug("triggering notification handler on id: %s", key_id)
                 matched = self.__notification_queue.trigger(key_id, data)
                 if not matched:
-                    logger.warning(f"Unmatched data for {key_id} with data {data.hex()}")
+                    logger.warning("Unmatched data for %s with data %s", key_id, data.hex())
             except Exception as e:
                 logger.warning("Exception triggering notification: %s", e)
 
