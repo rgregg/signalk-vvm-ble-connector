@@ -241,7 +241,7 @@ class BleDeviceConnection:
         little endian byte order
         """
 
-        logger.debug("Recieved data from device: %s" ,data)
+        logger.debug("Received data from device: %s" ,data)
         data = data[2:]  # remove the header bytes
         value = int.from_bytes(data, byteorder='little')
         logger.debug("Converted to value: %s", value)

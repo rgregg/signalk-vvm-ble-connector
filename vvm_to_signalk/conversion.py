@@ -44,7 +44,7 @@ class Conversion:
     @staticmethod
     def millivolts_to_volts(value):
         """Convert millivolts to volts"""
-        # Conversionf actor: 1 millivolt = 0.0001 volts
+        # Conversion factor: 1 millivolt = 0.0001 volts
         return value / 1000.0
     
     @staticmethod

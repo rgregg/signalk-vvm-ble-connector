@@ -33,7 +33,7 @@ class CsvWriter:
             return False
         
         if self.__wrote_fieldnames:
-            logging.warning("already wrote fieldnames - new fields won't be used")
+            logger.warning("already wrote fieldnames - new fields won't be used")
             return False
         
         self.__data.clear()
