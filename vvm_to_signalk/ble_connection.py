@@ -110,7 +110,7 @@ class BleDeviceConnection:
                 
                 self._set_health(True, "Connected to device")
 
-                logger.info("Retriving device identification metadata...")
+                logger.info("Retrieving device identification metadata...")
                 await self._retrieve_device_info(client)
                     
                 logger.info("Initalizing VVM...")
@@ -388,7 +388,7 @@ class BleDeviceConnection:
         logger.debug("triggering event listener for %s with data: %s", uuid, data)
         matched = self.__notification_queue.trigger(uuid, data)
         if not matched:
-            logger.warning(f"Unmatched data for UUID {uuid} with data {data.hex()}")
+            logger.warning("Unmatched data for UUID %s with data %s", uuid, data.hex())
         
         # handle promises for data based on the uuid + first byte of the response if raw data
         if raw_bytes_from_device:
@@ -397,7 +397,7 @@ class BleDeviceConnection:
                 logger.debug("triggering notification handler on id: %s", key_id)
                 matched = self.__notification_queue.trigger(key_id, data)
                 if not matched:
-                    logger.warning(f"Unmatched data for {key_id} with data {data.hex()}")
+                    logger.warning("Unmatched data for %s with data %s", key_id, data.hex())
             except Exception as e:
                 logger.warning("Exception triggering notification: %s", e)
 
