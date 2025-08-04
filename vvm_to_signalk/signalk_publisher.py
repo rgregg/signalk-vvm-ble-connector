@@ -195,6 +195,16 @@ class SignalKPublisher:
         converted_value = conversion_func(value)
         return converted_value
     
+    PATH_MAP = {
+        EngineParameterType.ENGINE_RPM: "revolutions",
+        EngineParameterType.COOLANT_TEMPERATURE: "temperature",
+        EngineParameterType.BATTERY_VOLTAGE: "alternatorVoltage",
+        EngineParameterType.ENGINE_RUNTIME: "runTime",
+        EngineParameterType.CURRENT_FUEL_FLOW: "fuel.rate",
+        EngineParameterType.OIL_PRESSURE: "oilPressure",
+        EngineParameterType.WATER_PRESSURE: "coolantPressure",
+    }
+
     def path_for_parameter(self, param: EngineParameter):
         """Return the Signal K path for the parameter"""
         engine_name = "port"
@@ -203,21 +213,9 @@ class SignalKPublisher:
         if (param.engine_id > 1):
             engine_name = str(param.engine_id)
 
-        match param.parameter_type:
-            case EngineParameterType.ENGINE_RPM:
-                return f"propulsion.{engine_name}.revolutions"
-            case EngineParameterType.COOLANT_TEMPERATURE:
-                return f"propulsion.{engine_name}.temperature"
-            case EngineParameterType.BATTERY_VOLTAGE:
-                return f"propulsion.{engine_name}.alternatorVoltage"
-            case EngineParameterType.ENGINE_RUNTIME:
-                return f"propulsion.{engine_name}.runTime"
-            case EngineParameterType.CURRENT_FUEL_FLOW:
-                return f"propulsion.{engine_name}.fuel.rate"
-            case EngineParameterType.OIL_PRESSURE:
-                return f"propulsion.{engine_name}.oilPressure"
-            case EngineParameterType.WATER_PRESSURE:
-                return f"propulsion.{engine_name}.waterPressure"
+        path_component = self.PATH_MAP.get(param.parameter_type)
+        if path_component:
+            return f"propulsion.{engine_name}.{path_component}"
         
         logger.debug("Unable to map SignalK path for parameter type %s on engine %s.", param.parameter_type, param.engine_id)
         return f"propulsion.{engine_name}.{param.parameter_type.name}"
