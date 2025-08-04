@@ -110,13 +110,13 @@ class BleDeviceConnection:
                 
                 self._set_health(True, "Connected to device")
 
-                logger.debug("Retriving device identification metadata...")
+                logger.info("Retrieving device identification metadata...")
                 await self._retrieve_device_info(client)
                     
-                logger.debug("Initalizing VVM...")
+                logger.info("Initalizing VVM...")
                 await self._initalize_vvm(client)
                     
-                logger.debug("Configuring data streaming notifications...")
+                logger.info("Configuring data streaming notifications...")
                 await self._setup_data_notifications(client)
 
                 logger.info("Enabling data streaming from BLE device")
@@ -206,9 +206,7 @@ class BleDeviceConnection:
     
 
     def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray):
-        """
-        Handles BLE notifications and indications
-        """
+        """Handles BLE notifications and indications"""
 
         self.__last_message_time = asyncio.get_event_loop().time()
 
@@ -233,7 +231,7 @@ class BleDeviceConnection:
 
             logger.debug("Received data for %s with value %s", matching_param, decoded_value)
         else:
-            logger.debug("Triggered default notification for UUID: %s with data %s", uuid, data.hex())
+            logger.warning("Received notification for unknown data header %s on UUID: %s with data %s", data_header, uuid, data.hex())
             self._trigger_event_listener(uuid, data, True)
 
     def _strip_header_and_convert_to_int(self, data):
@@ -278,18 +276,18 @@ class BleDeviceConnection:
         data = bytes([0x10, 0x27, 0x0])
         result = await self._request_configuration_data(client, UUIDs.DEVICE_NEXT_UUID, data)
         if (expected_result := '00102701010001') != result.hex():
-            logger.info("Response: %s, expected: 00102701010001", result.hex())
+            logger.warning("configuration_data_1 response: %s, expected: 00102701010001", result.hex())
 
         data = bytes([0xCA, 0x0F, 0x0])
         expected_result = "00ca0f01010000"
         result = await self._request_configuration_data(client, UUIDs.DEVICE_NEXT_UUID, data)
         if (expected_result != result.hex()):
-            logger.info("Response: %s, expected: %s", result.hex(), expected_result)
+            logger.warning("configuration_data_2 response: %s, expected: %s", result.hex(), expected_result)
 
         data = bytes([0xC8, 0x0F, 0x0])
         result = await self._request_configuration_data(client, UUIDs.DEVICE_NEXT_UUID, data)
         if (expected_result := '00c80f01040000000000') != result.hex():
-            logger.info("Response: %s, expected: %s", result.hex(), expected_result)
+            logger.warning("configuration_data_3 response: %s, expected: %s", result.hex(), expected_result)
 
     def update_engine_params(self, engine_params: list[EngineParameter]) -> None:
         """Update parameters with new values"""
@@ -298,9 +296,7 @@ class BleDeviceConnection:
             receiver.update_engine_parameters(engine_params)
 
     async def _set_streaming_mode(self, client: BleakClient, enabled):
-        """
-        Enable or disable engine data streaming via characteristic notifications
-        """
+        """ Enable or disable engine data streaming via characteristic notifications """
 
         if enabled:
             data = bytes([0xD, 0x1])
@@ -390,14 +386,18 @@ class BleDeviceConnection:
         """
 
         logger.debug("triggering event listener for %s with data: %s", uuid, data)
-        self.__notification_queue.trigger(uuid, data)
+        matched = self.__notification_queue.trigger(uuid, data)
+        if not matched:
+            logger.warning("Unmatched data for UUID %s with data %s", uuid, data.hex())
         
         # handle promises for data based on the uuid + first byte of the response if raw data
         if raw_bytes_from_device:
             try:
                 key_id = f"{uuid}+{int(data[0])}"
                 logger.debug("triggering notification handler on id: %s", key_id)
-                self.__notification_queue.trigger(key_id, data)
+                matched = self.__notification_queue.trigger(key_id, data)
+                if not matched:
+                    logger.warning("Unmatched data for %s with data %s", key_id, data.hex())
             except Exception as e:
                 logger.warning("Exception triggering notification: %s", e)
 
@@ -452,7 +452,6 @@ class UUIDs:
     DEVICE_CONFIG_UUID = "00000001-0000-1000-8000-ec55f9f5b963"
     DEVICE_NEXT_UUID = "00000111-0000-1000-8000-ec55f9f5b963"
     DEVICE_201_UUID = "00000201-0000-1000-8000-ec55f9f5b963"
-
 
 
 class BleConnectionConfig:
