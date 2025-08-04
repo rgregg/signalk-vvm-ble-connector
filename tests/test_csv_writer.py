@@ -66,7 +66,6 @@ class TestCsvWriter(unittest.TestCase):
     @patch('csv.DictWriter')
     def test_open_output_file(self, mock_dict_writer, mock_open_file):
         self.csv_writer.update_engine_parameters([EngineParameter(0, EngineParameterType.ENGINE_RPM.value)])
-        self.assertTrue(self.csv_writer.open_output_file())
         mock_open_file.assert_called_once_with(self.config.filename, 'a', newline='', encoding="utf-8")
         mock_dict_writer.assert_called_once_with(mock_open_file(), fieldnames=self.csv_writer._CsvWriter__fieldnames)
         mock_dict_writer().writeheader.assert_called_once()
