@@ -1,16 +1,23 @@
-FROM python:3.12
+FROM python:3.13.5-slim
 
 RUN apt-get update && \
-    apt-get install -y bluetooth bluez bluez-tools 
-
-RUN ["mkdir", "-p", "/app/logs"]
+    apt-get install -y --no-install-recommends bluetooth bluez bluez-tools curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 ADD requirements.txt /app
-RUN ["pip", "install", "-r", "requirements.txt"]
+RUN ["pip", "install", "-r", "requirements.txt", "--no-cache-dir"]
 
-COPY *.py /app/
+COPY vvm_to_signalk/ /app/vvm_to_signalk
 ADD entrypoint.sh /app/
+RUN ["mkdir", "-p", "/app/logs"]
+
+ENV APP_HEALTHCHECK=True
+
+# Set up healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD ["test", "-f", "/tmp/healthcheck"]
 
 CMD ["/app/entrypoint.sh"] 
