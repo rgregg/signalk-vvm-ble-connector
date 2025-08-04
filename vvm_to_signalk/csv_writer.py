@@ -30,11 +30,11 @@ class CsvWriter:
     def update_engine_parameters(self, parameters: list[EngineParameter]):
         """Update the columns for the CSV output"""
         if parameters is None:
-            return
+            return False
         
         if self.__wrote_fieldnames:
             logging.warning("already wrote fieldnames - new fields won't be used")
-            return
+            return False
         
         self.__data.clear()
         fieldnames = ["timestamp"]
@@ -44,6 +44,7 @@ class CsvWriter:
             self.__data[key] = None
         self.__fieldnames = fieldnames
         self.open_output_file()
+        return True
 
     # pylint: disable=consider-using-with
     def open_output_file(self) -> bool:

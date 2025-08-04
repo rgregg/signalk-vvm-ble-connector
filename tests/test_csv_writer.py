@@ -52,14 +52,13 @@ class TestCsvWriter(unittest.TestCase):
             EngineParameter(EngineParameterType.ENGINE_RPM.value, 0),
             EngineParameter(257, 1)
         ]
-        self.csv_writer.update_engine_parameters(params)
+        self.assertTrue(self.csv_writer.update_engine_parameters(params))
         expected_fieldnames = ["timestamp", "0_ENGINE_RPM", "1_COOLANT_TEMPERATURE"]
         self.assertEqual(self.csv_writer._CsvWriter__fieldnames, expected_fieldnames)
-        self.assertFalse(self.csv_writer._CsvWriter__wrote_fieldnames)
+        self.assertTrue(self.csv_writer._CsvWriter__wrote_fieldnames)
 
         # Test that parameters are not updated after writing fieldnames
-        self.csv_writer._CsvWriter__wrote_fieldnames = True
-        self.csv_writer.update_engine_parameters([EngineParameter(2, EngineParameterType.BATTERY_VOLTAGE.value)])
+        self.assertFalse(self.csv_writer.update_engine_parameters([EngineParameter(2, EngineParameterType.BATTERY_VOLTAGE.value)]))
         self.assertEqual(self.csv_writer._CsvWriter__fieldnames, expected_fieldnames)
 
     @patch('builtins.open', new_callable=mock_open)
