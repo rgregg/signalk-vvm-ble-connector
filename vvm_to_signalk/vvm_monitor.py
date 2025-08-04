@@ -270,7 +270,7 @@ class VVMConfig:
                 level_str = level_str.upper()
                 self._logging_level = getattr(logging, level_str, logging.INFO)
             else:
-                self.__logging_level = logging.INFO
+                self._logging_level = logging.INFO
 
             self._logging_file = log_config.get('file', self._logging_file)
             self._logging_keep = log_config.get('keep', self._logging_keep)

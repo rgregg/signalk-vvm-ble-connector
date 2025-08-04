@@ -49,7 +49,7 @@ class SignalKPublisher:
     
     @property
     def socket_connected(self):
-        """Indicates conncetion status to SignalK API"""
+        """Indicates connection status to SignalK API"""
         return self.__socket_connected
     
     @socket_connected.setter
@@ -223,7 +223,8 @@ class SignalKPublisher:
         return f"propulsion.{engine_name}.{param.parameter_type.name}"
 
     def update_engine_parameters(self, parameters: list[EngineParameter]):
-        """Get parameters from the BLE connection - not necessary for SignalK"""
+        """No-op: Getting parameters from the BLE connection is not necessary for SignalK."""
+        pass
         
 
     async def accept_engine_data(self, param: EngineParameter, value: Any) -> None:
