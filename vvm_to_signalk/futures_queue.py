@@ -27,7 +27,7 @@ class FuturesQueue:
         future = self.register(key)
         future.add_done_callback(func)
 
-    def trigger(self, key: str, value):
+    def trigger(self, key: str, value) -> bool:
         """
         Process a result that may trigger a future promise that was
         previous requested.
@@ -37,10 +37,12 @@ class FuturesQueue:
             logger.debug("triggered future for %s with %s", key, value)
             if (future := self.__queue.pop(key, None)) is None:
                 logger.debug("triggered future for %s but it was already removed", key)
-                return
+                return True
             future.set_result(value)
+            return True
         else:
             logger.debug("triggered future for %s with no listener", key)
+            return False
         
 
     async def wait_for_data(self, key: str, timeout: int, default_value):
