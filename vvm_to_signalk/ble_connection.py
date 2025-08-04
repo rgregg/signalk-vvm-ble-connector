@@ -388,7 +388,7 @@ class BleDeviceConnection:
         logger.debug("triggering event listener for %s with data: %s", uuid, data)
         matched = self.__notification_queue.trigger(uuid, data)
         if not matched:
-            logger.warning(f"Unmatched data for UUID {uuid} with data {data.hex()}")
+            logger.warning("Unmatched data for UUID %s with data %s", uuid, data.hex())
         
         # handle promises for data based on the uuid + first byte of the response if raw data
         if raw_bytes_from_device:
