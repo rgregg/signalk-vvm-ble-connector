@@ -52,21 +52,19 @@ class TestCsvWriter(unittest.TestCase):
             EngineParameter(EngineParameterType.ENGINE_RPM.value, 0),
             EngineParameter(257, 1)
         ]
-        self.csv_writer.update_engine_parameters(params)
+        self.assertTrue(self.csv_writer.update_engine_parameters(params))
         expected_fieldnames = ["timestamp", "0_ENGINE_RPM", "1_COOLANT_TEMPERATURE"]
         self.assertEqual(self.csv_writer._CsvWriter__fieldnames, expected_fieldnames)
-        self.assertFalse(self.csv_writer._CsvWriter__wrote_fieldnames)
+        self.assertTrue(self.csv_writer._CsvWriter__wrote_fieldnames)
 
         # Test that parameters are not updated after writing fieldnames
-        self.csv_writer._CsvWriter__wrote_fieldnames = True
-        self.csv_writer.update_engine_parameters([EngineParameter(2, EngineParameterType.BATTERY_VOLTAGE.value)])
+        self.assertFalse(self.csv_writer.update_engine_parameters([EngineParameter(2, EngineParameterType.BATTERY_VOLTAGE.value)]))
         self.assertEqual(self.csv_writer._CsvWriter__fieldnames, expected_fieldnames)
 
     @patch('builtins.open', new_callable=mock_open)
     @patch('csv.DictWriter')
     def test_open_output_file(self, mock_dict_writer, mock_open_file):
         self.csv_writer.update_engine_parameters([EngineParameter(0, EngineParameterType.ENGINE_RPM.value)])
-        self.assertTrue(self.csv_writer.open_output_file())
         mock_open_file.assert_called_once_with(self.config.filename, 'a', newline='', encoding="utf-8")
         mock_dict_writer.assert_called_once_with(mock_open_file(), fieldnames=self.csv_writer._CsvWriter__fieldnames)
         mock_dict_writer().writeheader.assert_called_once()

@@ -30,11 +30,11 @@ class CsvWriter:
     def update_engine_parameters(self, parameters: list[EngineParameter]):
         """Update the columns for the CSV output"""
         if parameters is None:
-            return
+            return False
         
         if self.__wrote_fieldnames:
             logging.warning("already wrote fieldnames - new fields won't be used")
-            return
+            return False
         
         self.__data.clear()
         fieldnames = ["timestamp"]
@@ -43,6 +43,8 @@ class CsvWriter:
             fieldnames.append(key)
             self.__data[key] = None
         self.__fieldnames = fieldnames
+        self.open_output_file()
+        return True
 
     # pylint: disable=consider-using-with
     def open_output_file(self) -> bool:
@@ -95,7 +97,8 @@ class CsvWriter:
 
     async def flush_queue_to_csv(self):
         """Flushes the queued data to the output file """
-        self.__writer.writerow(self.__data)
+        if self.__writer:
+            self.__writer.writerow(self.__data)
 
     def __exit__(self, _exc_type, _exc_val, _exc_tb):
         self.flush_queue_to_csv()
