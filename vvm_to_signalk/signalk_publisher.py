@@ -202,7 +202,7 @@ class SignalKPublisher:
         EngineParameterType.ENGINE_RUNTIME: "runTime",
         EngineParameterType.CURRENT_FUEL_FLOW: "fuel.rate",
         EngineParameterType.OIL_PRESSURE: "oilPressure",
-        EngineParameterType.WATER_PRESSURE: "waterPressure",
+        EngineParameterType.WATER_PRESSURE: "coolantPressure",
     }
 
     def path_for_parameter(self, param: EngineParameter):
