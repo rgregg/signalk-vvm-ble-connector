@@ -110,7 +110,7 @@ class BleDeviceConnection:
                 
                 self._set_health(True, "Connected to device")
 
-                logger.info("Retriving device identification metadata...")
+                logger.info("Retrieving device identification metadata...")
                 await self._retrieve_device_info(client)
                     
                 logger.info("Initalizing VVM...")
