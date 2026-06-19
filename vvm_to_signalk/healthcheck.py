@@ -16,6 +16,18 @@ DEFAULT_HEALTHCHECK_FILE = "/tmp/healthcheck"
 DEFAULT_MAX_AGE_SECONDS = 60
 
 
+def format_heartbeat(signalk_ok: bool, now: datetime) -> str:
+    """Produce a heartbeat line for the given state.
+
+    This is the single source of truth for the heartbeat format shared by the
+    writer (``write_healthcheck``) and the checker (``is_healthy``) so the two
+    cannot drift apart.
+    """
+    if signalk_ok:
+        return f"OK {now.isoformat()}\n"
+    return f"BAD SignalK Disconnected {now.isoformat()}\n"
+
+
 def is_healthy(content: str, now: datetime, max_age_seconds: int = DEFAULT_MAX_AGE_SECONDS) -> bool:
     """Return True when the heartbeat content reports OK and is fresh.
 

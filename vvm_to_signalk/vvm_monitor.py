@@ -13,6 +13,7 @@ from .ble_connection import BleConnectionConfig, BleDeviceConnection
 from .signalk_publisher import SignalKConfig, SignalKPublisher
 from .config_decoder import EngineParameter
 from .csv_writer import CsvWriter, CsvWriterConfig
+from .healthcheck import format_heartbeat
 
 logger = logging.getLogger(__name__)
 
@@ -231,10 +232,7 @@ class VesselViewMobileDataRecorder:
         """Write the healthcheck status to a file"""
         while True:
             with open("/tmp/healthcheck", "w", encoding="utf-8") as f:
-                if not self.__health["signalk"]:
-                    f.write(f"BAD SignalK Disconnected {datetime.utcnow().isoformat()}\n")
-                else:
-                    f.write(f"OK {datetime.utcnow().isoformat()}\n")
+                f.write(format_heartbeat(self.__health["signalk"], datetime.utcnow()))
             await asyncio.sleep(15)
 
 class VVMConfig:
