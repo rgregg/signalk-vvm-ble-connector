@@ -1,0 +1,37 @@
+name: Docker Image Smoke Test
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - dev
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Build image (no push)
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        load: true
+        push: false
+        platforms: linux/amd64
+        tags: vvm-monitor:ci
+    - name: HEALTHCHECK is configured in the image
+      run: |
+        test "$(docker inspect --format '{{if .Config.Healthcheck}}yes{{else}}no{{end}}' vvm-monitor:ci)" = "yes"
+    - name: Healthcheck command runs and reports unhealthy with no heartbeat
+      run: |
+        docker run --rm --entrypoint python vvm-monitor:ci -m vvm_to_signalk.healthcheck && \
+          { echo "expected non-zero exit when heartbeat file is missing"; exit 1; } || true
+    - name: Healthcheck reports healthy for a fresh OK heartbeat
+      run: |
+        docker run --rm vvm-monitor:ci sh -c '
+          python -c "from datetime import datetime; from vvm_to_signalk.healthcheck import format_heartbeat; open(\"/tmp/healthcheck\", \"w\").write(format_heartbeat(True, datetime.utcnow()))" &&
+          python -m vvm_to_signalk.healthcheck
+        '
