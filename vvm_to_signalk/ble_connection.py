@@ -249,6 +249,7 @@ class BleDeviceConnection:
             logger.info("Active engines: %s", sorted(self._active_engine_ids))
 
     def _handle_fault_notification(self, data: bytes):
+        """Parse a fault alert payload and dispatch it to all registered receivers."""
         fault = parse_fault(data)
         if fault is None:
             return

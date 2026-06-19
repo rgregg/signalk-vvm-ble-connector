@@ -122,3 +122,41 @@ class TestVesselViewMobileDataRecorder(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+import asyncio
+from vvm_to_signalk.ble_connection import BleDeviceConnection, BleConnectionConfig, UUIDs
+from vvm_to_signalk.data_dictionary import DataDictionary
+
+
+class RecordingReceiver:
+    def __init__(self): self.values = {}; self.faults = []
+    async def accept_engine_data(self, item, engine_id, value):
+        self.values[(item.id, engine_id)] = value
+    def update_active_items(self, ids): pass
+    async def accept_fault(self, fault): self.faults.append(fault)
+
+
+class FakeChar:
+    def __init__(self, uuid): self.uuid = uuid
+
+
+def test_capture_bytes_produce_expected_values():
+    async def _run():
+        conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+        rx = RecordingReceiver(); conn.accept_data_receiver(rx)
+        conn._dictionary = DataDictionary.load(); conn._max_engines = 4
+        conn._active_engine_ids = {1}
+        # RPM 600, Voltage 14.523, Oil pressure 295.42 kPa
+        conn.notification_handler(FakeChar("00000102-0000-1000-8000-ec55f9f5b963"),
+                                  bytearray.fromhex("01005802000000000000"))
+        conn.notification_handler(FakeChar("00000104-0000-1000-8000-ec55f9f5b963"),
+                                  bytearray.fromhex("e800bb38000000000000"))
+        # Fault on 0x201
+        conn.notification_handler(FakeChar(UUIDs.DEVICE_201_UUID), bytearray.fromhex("12015704"))
+        await asyncio.sleep(0)
+        return rx
+    rx = asyncio.run(_run())
+    assert rx.values[(1, 1)] == 600.0
+    assert round(rx.values[(232, 1)], 3) == 14.523
+    assert rx.faults and rx.faults[0].fault_key == "1111-Legacy"
