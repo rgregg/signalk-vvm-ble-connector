@@ -108,5 +108,15 @@ class TestSignalKPublisher(unittest.IsolatedAsyncioTestCase):
         self.publisher.update_active_items([1, 2, 3])
 
 
+def test_engine_labels_parsed_from_config():
+    cfg = SignalKConfig({"websocket-url": "ws://x",
+                         "engine-labels": {1: "port", 2: "starboard"}})
+    assert cfg.engine_labels == {1: "port", 2: "starboard"}
+
+
+def test_engine_labels_default_none():
+    assert SignalKConfig({"websocket-url": "ws://x"}).engine_labels is None
+
+
 if __name__ == '__main__':
     unittest.main()

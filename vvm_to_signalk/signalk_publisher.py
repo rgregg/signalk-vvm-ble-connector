@@ -250,6 +250,9 @@ class SignalKConfig:
         self.__password = data.get('password', self.__password)
         self.__retry_interval = data.get('retry-interval-seconds', self.__retry_interval)
         self.__send_unknown_parameters = data.get('send-unknown-parameters', self.__send_unknown_parameters)
+        labels = data.get('engine-labels')
+        if labels is not None:
+            self.__engine_labels = {int(k): str(v) for k, v in labels.items()}
 
     @property
     def websocket_url(self):
