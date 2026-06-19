@@ -139,9 +139,12 @@ Bytes 2–8 (7 bytes) are zero-padded to 8 and read as a **uint64 LE**, then bit
 | `FaultSeverity` | 0–2 (`& 0x7`) |
 | `ActionId` | 3–11 (`& 0xFF8 >> 3`) |
 | `LongId` | 12–22 (`& 0x7FF000 >> 12`) |
-| `ShortId` | 23–33 (`& 0x7FF800000 >> 23`) |
+| `ShortId` | 23–34 (`& 0x7FF800000 >> 23`) |
 | `FailureTypeId` | 35–41 (`& 0x3F800000000 >> 35`) |
-| `FaultId` | 42–57 (`& 0xFFFC0000000000 >> 42`) |
+| `FaultId` | 42–55 (`& 0xFFFC0000000000 >> 42`) |
+
+The **bit masks are authoritative** (they match the app's decode exactly); the bit-range
+column is derived from them. `FaultId` is therefore 14 bits (max 16383).
 
 Fault key = `"{FaultId}-{FailureTypeId}"`.
 
