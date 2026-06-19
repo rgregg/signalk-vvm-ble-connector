@@ -23,7 +23,6 @@ class SignalKPublisher:
         self.__notifications = FuturesQueue()
         self.__health = health_status
         self.__should_log_connection_down = True
-        self.__engine_labels = None
 
     @property
     def websocket_url(self):

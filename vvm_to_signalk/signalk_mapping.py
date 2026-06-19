@@ -42,7 +42,7 @@ _PATH_MAP = {
     181:  "propulsion.{engine}.oilPressure",
     182:  "propulsion.{engine}.oilTemperature",
     210:  "propulsion.{engine}.coolantTemperature",
-    211:  "propulsion.{engine}.coolantTemperature",
+    211:  "propulsion.{engine}.vvm.portCoolantTemperature",
     212:  "propulsion.{engine}.coolantPressure",   # Block Pressure
     230:  "environment.outside.pressure",
     231:  "environment.water.temperature",

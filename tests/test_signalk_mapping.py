@@ -63,3 +63,9 @@ def test_unmapped_returns_none_by_default():
 
 def test_unmapped_with_include_flag():
     assert signalk_path(D.by_id(87), 1, include_unmapped=True) == "propulsion.starboard.vvm.guardianCause"
+
+def test_path_starboard_coolant_temp():
+    assert signalk_path(D.by_id(210), 1) == "propulsion.starboard.coolantTemperature"
+
+def test_path_port_coolant_temp_distinct():
+    assert signalk_path(D.by_id(211), 1) == "propulsion.starboard.vvm.portCoolantTemperature"
