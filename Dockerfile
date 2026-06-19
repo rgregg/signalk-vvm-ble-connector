@@ -14,10 +14,12 @@ COPY vvm_to_signalk/ /app/vvm_to_signalk
 ADD entrypoint.sh /app/
 RUN ["mkdir", "-p", "/app/logs"]
 
-ENV APP_HEALTHCHECK=True
+ENV APP_HEALTHCHECK_ENABLE=True
 
-# Set up healthcheck
+# Set up healthcheck. Healthy = a fresh "OK" heartbeat (SignalK connected and the
+# main loop alive). A device that is simply absent keeps reporting OK and stays
+# healthy; only genuine faults (SignalK lost, loop stalled) report unhealthy.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD ["test", "-f", "/tmp/healthcheck"]
+  CMD ["python", "-m", "vvm_to_signalk.healthcheck"]
 
 CMD ["/app/entrypoint.sh"] 
