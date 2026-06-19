@@ -11,7 +11,6 @@ import yaml
 
 from .ble_connection import BleConnectionConfig, BleDeviceConnection
 from .signalk_publisher import SignalKConfig, SignalKPublisher
-from .config_decoder import EngineParameter
 from .csv_writer import CsvWriter, CsvWriterConfig
 from .healthcheck import format_heartbeat
 
@@ -99,15 +98,6 @@ class VesselViewMobileDataRecorder:
                 logging.getLogger().addHandler(handler)
             except Exception as e:
                 logger.error("Error setting up logging file handler: %s", e)
-
-    async def publish_data_func(self, param:EngineParameter, value):
-        """Callback for publishing data to the websocket"""
-
-        if self.__signalk_socket is not None:
-            await self.__signalk_socket.accept_engine_data(param, value)
-
-        if self.__csv_writer is not None:
-            await self.__csv_writer.accept_engine_data(param, value)
 
     @staticmethod
     def parse_arguments(config: 'VVMConfig'):

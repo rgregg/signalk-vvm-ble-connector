@@ -1,9 +1,18 @@
 """Tests for the SignalK Publisher"""
 
 import unittest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock
 from vvm_to_signalk.signalk_publisher import SignalKPublisher, SignalKConfig
-from vvm_to_signalk.config_decoder import EngineParameter
+
+
+class FakeItem:
+    """Minimal stand-in for DataItem used in publisher tests."""
+    def __init__(self, item_id=1, name="RPM", units="revs/minute", is_vessel=False):
+        self.id = item_id
+        self.name = name
+        self.units = units
+        self.is_vessel = is_vessel
+
 
 class TestSignalKPublisher(unittest.IsolatedAsyncioTestCase):
     """Test the SignalK Publisher"""
@@ -25,52 +34,48 @@ class TestSignalKPublisher(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(delta["updates"][0]["values"][0]["path"], path)
         self.assertEqual(delta["updates"][0]["values"][0]["value"], value)
 
-    async def test_path_for_parameter(self):
-        """Test that the correct SignalK path is generated for a parameter"""
-        # Test with engine 0 (port)
-        param = EngineParameter(0, 1)
-        path = self.publisher.path_for_parameter(param)
-        self.assertEqual(path, "propulsion.port.revolutions")
-
-        # Test with engine 1 (starboard)
-        param = EngineParameter(256, 1) # 256 is engine 1, 0 is RPM
-        path = self.publisher.path_for_parameter(param)
-        self.assertEqual(path, "propulsion.starboard.revolutions")
-
-        # Test with another engine id
-        param = EngineParameter(512, 1) # 512 is engine 2, 0 is RPM
-        path = self.publisher.path_for_parameter(param)
-        self.assertEqual(path, "propulsion.2.revolutions")
-
-    @patch('websockets.connect')
-    async def test_accept_engine_data(self, mock_connect):
-        """Test that engine data is correctly published"""
-        # Mock the websocket connection
+    async def test_accept_engine_data_known_path(self):
+        """Engine data for a known item is sent with SI-converted value."""
         mock_websocket = AsyncMock()
-        mock_connect.return_value = mock_websocket
         self.publisher.socket_connected = True
         self.publisher._SignalKPublisher__websocket = mock_websocket
 
-        # Test with a known parameter
-        param = EngineParameter(0, 1) # Engine 0, RPM
-        value = 1500
-        await self.publisher.accept_engine_data(param, value)
+        item = FakeItem(item_id=1, name="RPM", units="revs/minute")
+        await self.publisher.accept_engine_data(item, 1, 600.0)
+
         mock_websocket.send.assert_called_once()
-        
-        # Test with an unknown parameter (should not be sent)
-        mock_websocket.reset_mock()
-        param = EngineParameter(3, 1) # Engine 0, Unknown
-        value = 123
-        await self.publisher.accept_engine_data(param, value)
+        import json
+        sent = json.loads(mock_websocket.send.call_args[0][0])
+        values = sent["updates"][0]["values"]
+        self.assertEqual(len(values), 1)
+        self.assertEqual(values[0]["path"], "propulsion.starboard.revolutions")
+        self.assertAlmostEqual(values[0]["value"], 600.0 / 60.0)  # Hz
+
+    async def test_accept_engine_data_unknown_skipped(self):
+        """Engine data for an unmapped item is skipped by default."""
+        mock_websocket = AsyncMock()
+        self.publisher.socket_connected = True
+        self.publisher._SignalKPublisher__websocket = mock_websocket
+
+        item = FakeItem(item_id=9999, name="UnknownValue", units="")
+        await self.publisher.accept_engine_data(item, 1, 42.0)
         mock_websocket.send.assert_not_called()
 
-        # Test with an unknown parameter (should be sent)
-        mock_websocket.reset_mock()
+    async def test_accept_engine_data_unknown_included_when_configured(self):
+        """Engine data for an unmapped item is sent when send_unknown_parameters=True."""
+        mock_websocket = AsyncMock()
+        self.publisher.socket_connected = True
+        self.publisher._SignalKPublisher__websocket = mock_websocket
         self.config.send_unknown_parameters = True
-        param = EngineParameter(3, 1) # Engine 0, Unknown
-        value = 123
-        await self.publisher.accept_engine_data(param, value)
+
+        item = FakeItem(item_id=9999, name="UnknownValue", units="")
+        await self.publisher.accept_engine_data(item, 1, 42.0)
         mock_websocket.send.assert_called_once()
+
+    def test_update_active_items_is_noop(self):
+        """update_active_items should not raise."""
+        self.publisher.update_active_items([1, 2, 3])
+
 
 if __name__ == '__main__':
     unittest.main()
