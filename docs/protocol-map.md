@@ -235,9 +235,9 @@ byte width / signedness.
 | 50 | Steering Position | sint2 | 0.01 | percent |  | Channel/Engines |
 | 51 | Throttle Position | uint1 | 0.4 | percent |  | Channel/Engines |
 | 52 | Percent Load | uint1 | 1 | percent |  | Channel/Engines |
-| 87 | Guardian Cause | uint1 | 1 | enumerated | {0 : GC_NONE,1 : GC_CHI,2 : GC_BLK_PRESS_LOW,3 : GC_TEMPERATURE_HIG... | Channel/Engines |
+| 87 | Guardian Cause | uint1 | 1 | enumerated | {0 : GC_NONE,1 : GC_CHI,2 : GC_BLK_PRESS_LOW,3 : GC_TEMPERATURE_HIGH,4 : GC_LOW_OIL,5 : GC_CRITICAL_OIL,6 : GC_BATT_VOLT,7 : GC_BREAKIN,8 : GC_SENSOR_FAULT,9 : GC_FORCED_IDLE,10 : GC_OIL_PUMP_FAULT,11 : GC_OIL_PRESSURE,12 : GC_EMCT_TEMP,13 : GC_DISPLAY_OFS,14 : GC_OIL_TEMP,15 : GC_SC_TEMP,16 : GC_CHARGE_TEMP,17 : GC_TRAILER_LIMIT,18 : GC_AIRFLOW_GROUP} | Channel/Engines |
 | 88 | Assert Functions | 8bit | 1 | Bitfield | {0-1:Remote Horn On,1-7:Reserved} | Channel/Engines |
-| 97 | Seven Function Gauge Data | 8bit | 1 | Bitfield | {0-1:Oil Fault,1-1:Reserved,2-1:Guardian/Check Engine,3-1:CAN Fault... | Channel/Engines |
+| 97 | Seven Function Gauge Data | 8bit | 1 | Bitfield | {0-1:Oil Fault,1-1:Reserved,2-1:Guardian/Check Engine,3-1:CAN Fault,4-1:Water in Fuel,5-1:Voltage Fault,6-1:Water Pressure Fault,7-1:Coolant Temperature Fault | Channel/Engines |
 | 98 | Oil Fault | boolean | 1 | Flag |  | Channel/Engines |
 | 100 | Guardian/Check Engine | boolean | 1 | Flag |  | Channel/Engines |
 | 101 | CAN Fault | boolean | 1 | Flag |  | Channel/Engines |
@@ -276,7 +276,7 @@ byte width / signedness.
 | 241 | Troll RPM Min | uint1 | 10 | revs/minute |  | Channel/Engines |
 | 242 | Fuel Flow Max | uint2 | 0.01 | liters/hour |  | Channel/Engines |
 | 243 | RPM Rev. Limit (Redline) | uint2 | 1 | revs/minute |  | Channel/Engines |
-| 244 | Engine Type | uint1 | 1 | enumerated | {00:UNDEFINED,01:2S_OUTBOARD,02:4S_OUTBOARD,03:STERN_NO_TROLL,04:IN... | Channel/Engines |
+| 244 | Engine Type | uint1 | 1 | enumerated | {00:UNDEFINED,01:2S_OUTBOARD,02:4S_OUTBOARD,03:STERN_NO_TROLL,04:INBRD_NO_TROLL,05:JET_DRIVE,06:STERNDRIVE,07:INBOARD,08:MAKO} | Channel/Engines |
 | 250 | Depth | uint2 | 0.01 | meters |  | Channel/Engines |
 | 251 | Seawater Temperature | sint2 | 0.1 | degrees C |  | Channel/Engines |
 | 252 | Boat Speed | uint2 | 0.1 | km/hour |  | Channel/Engines |
@@ -371,4 +371,4 @@ byte width / signedness.
 | 10000 | Active Engines | 8bit | 1 | Bitfield | {0-1:Engine 1,1-1:Engine 2,2-1:Engine 3,3-1:Engine 4} | UserVar,Channel/Vessel |
 | 10001 | Key Switch State | boolean | 1 | enumerated | {0:Off,1:On} | UserVar,Channel/Vessel |
 
-_Total: 153 data items (full dictionary extracted from UniversalDataItems.xml)._
+_Total: 153 data items._
