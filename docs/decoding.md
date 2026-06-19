@@ -1,5 +1,16 @@
 # Decoding
 
+> **Update (2026-06-19):** The protocol has since been fully mapped — see
+> **[protocol-map.md](protocol-map.md)** for the authoritative reference. The
+> previously-"unknown" channel values are now identified: the 2-byte notification "header"
+> is the **little-endian SmartCraft data-item ID**, and each channel carries **up to 4
+> engines' values** (value × `Gain`). Resolved IDs:
+> `0x7017`→6000 Fuel Burned Trip A, `0x401f`→8000 Fuel Remaining, `0x1027`→10000 Active
+> Engines, `0xd400`→212 Block Pressure, `0xb600`→182 Oil Temperature, `0xfb00`→251 Seawater
+> Temperature, `0x0a00`→10 Fuel Flow Total. Engine faults arrive on the **Fault Alert**
+> characteristic `0x00000201` (indications) — see protocol-map.md §3. The notes below are
+> the original empirical observations, kept for history.
+
 ## Data from app
 
 Engine Hours: 96.7
