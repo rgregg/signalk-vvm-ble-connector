@@ -1,0 +1,1595 @@
+[
+  {
+    "id": 1,
+    "name": "RPM",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 2,
+    "name": "Actual Gear",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "0": "DIAG_SHORT",
+      "1": "REVERSE",
+      "2": "FORWARD",
+      "3": "DIAG_OPEN",
+      "4": "NEUTRAL",
+      "5": "IN_GEAR"
+    },
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 3,
+    "name": "Manifold Pressure",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "kPa",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 4,
+    "name": "City In Control Troll",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 5,
+    "name": "City Requesting Control Troll",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 10,
+    "name": "Fuel Flow Total",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "liters/hour",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 11,
+    "name": "Fuel Pressure",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "kPa",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 12,
+    "name": "Manifold Vacuum",
+    "type": "sint2",
+    "gain": 0.01,
+    "units": "kPa",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 20,
+    "name": "Pitot Boat Speed",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 21,
+    "name": "Paddle Wheel Boat Speed",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "Hz",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 30,
+    "name": "Engine Trim Position",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 35,
+    "name": "Trim Position Delta",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 40,
+    "name": "Port Vessel Trim Tab Position",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 41,
+    "name": "Starboard Vessel Trim Tab Position",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 42,
+    "name": "Center Vessel Trim Tab Position",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 50,
+    "name": "Steering Position",
+    "type": "sint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 51,
+    "name": "Throttle Position",
+    "type": "uint1",
+    "gain": 0.4,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 52,
+    "name": "Percent Load",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 87,
+    "name": "Guardian Cause",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "0": "GC_NONE",
+      "1": "GC_CHI",
+      "2": "GC_BLK_PRESS_LOW",
+      "3": "GC_TEMPERATURE_HIGH",
+      "4": "GC_LOW_OIL",
+      "5": "GC_CRITICAL_OIL",
+      "6": "GC_BATT_VOLT",
+      "7": "GC_BREAKIN",
+      "8": "GC_SENSOR_FAULT",
+      "9": "GC_FORCED_IDLE",
+      "10": "GC_OIL_PUMP_FAULT",
+      "11": "GC_OIL_PRESSURE",
+      "12": "GC_EMCT_TEMP",
+      "13": "GC_DISPLAY_OFS",
+      "14": "GC_OIL_TEMP",
+      "15": "GC_SC_TEMP",
+      "16": "GC_CHARGE_TEMP",
+      "17": "GC_TRAILER_LIMIT",
+      "18": "GC_AIRFLOW_GROUP"
+    },
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 88,
+    "name": "Assert Functions",
+    "type": "8bit",
+    "gain": 1.0,
+    "units": "Bitfield",
+    "enum": null,
+    "bits": "{0-1:Remote Horn On,1-7:Reserved}",
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 97,
+    "name": "Seven Function Gauge Data",
+    "type": "8bit",
+    "gain": 1.0,
+    "units": "Bitfield",
+    "enum": null,
+    "bits": "{0-1:Oil Fault,1-1:Reserved,2-1:Guardian/Check Engine,3-1:CAN Fault,4-1:Water in Fuel,5-1:Voltage Fault,6-1:Water Pressure Fault,7-1:Coolant Temperature Fault",
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 98,
+    "name": "Oil Fault",
+    "type": "boolean",
+    "gain": 1.0,
+    "units": "Flag",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 100,
+    "name": "Guardian/Check Engine",
+    "type": "boolean",
+    "gain": 1.0,
+    "units": "Flag",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 101,
+    "name": "CAN Fault",
+    "type": "boolean",
+    "gain": 1.0,
+    "units": "Flag",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 102,
+    "name": "Water in Fuel",
+    "type": "boolean",
+    "gain": 1.0,
+    "units": "Flag",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 103,
+    "name": "Voltage Fault",
+    "type": "boolean",
+    "gain": 1.0,
+    "units": "Flag",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 104,
+    "name": "Water Pressure Fault",
+    "type": "boolean",
+    "gain": 1.0,
+    "units": "Flag",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 105,
+    "name": "Coolant Temperature Fault",
+    "type": "boolean",
+    "gain": 1.0,
+    "units": "Flag",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 106,
+    "name": "Malfunction Indicator Light (MIL) Data",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "0": "MIL Off",
+      "1": "MIL Constant On"
+    },
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 110,
+    "name": "Diesel Flag",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "0": "Gasoline Engine",
+      "1": "Diesel Engine"
+    },
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 130,
+    "name": "Engine State",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "0": "DEAD",
+      "1": "STALL",
+      "2": "CRANK",
+      "3": "RUN",
+      "4": "POWEROFF"
+    },
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 131,
+    "name": "Engine Operating Mode",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "0": "ENGOPERMODE_NONE",
+      "1": "ENGOPERMODE_IDLE",
+      "2": "ENGOPERMODE_OFF_IDLE"
+    },
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 132,
+    "name": "RPM Control State",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "0": "RPM_CTRL_DISABLE_STATE",
+      "1": "RPM_CTRL_ACTIVE_STATE"
+    },
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 140,
+    "name": "Power Limit Setpoint Latched",
+    "type": "uint1",
+    "gain": 0.78125,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 141,
+    "name": "Gear Pressure",
+    "type": "uint2",
+    "gain": 0.1,
+    "units": "kPa",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 142,
+    "name": "Gear Temperature",
+    "type": "sint2",
+    "gain": 1.0,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 143,
+    "name": "Intake Manifold Temperature",
+    "type": "sint1",
+    "gain": 1.0,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 150,
+    "name": "Engine Run Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 160,
+    "name": "Break-in Time Required",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 161,
+    "name": "Accumulated Break-in Time",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 170,
+    "name": "Fuel Level 1",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 171,
+    "name": "Fuel Level 2",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 180,
+    "name": "Oil Level",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 181,
+    "name": "Oil Pressure",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "kPa",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 182,
+    "name": "Oil Temperature",
+    "type": "sint2",
+    "gain": 1.0,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 190,
+    "name": "Oil Prime Remaining",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 191,
+    "name": "Reserve Oil Remaining",
+    "type": "uint2",
+    "gain": 0.1,
+    "units": "percent",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 210,
+    "name": "Starboard Coolant Temp",
+    "type": "sint2",
+    "gain": 1.0,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 211,
+    "name": "Port Coolant Temp",
+    "type": "sint2",
+    "gain": 1.0,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 212,
+    "name": "Block Pressure",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "kPa",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 220,
+    "name": "Starboard EMCT",
+    "type": "sint2",
+    "gain": 1.0,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 221,
+    "name": "Port EMCT",
+    "type": "sint2",
+    "gain": 1.0,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 230,
+    "name": "Barometric Pressure",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "kPa",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 231,
+    "name": "Sea Water Temperature",
+    "type": "sint1",
+    "gain": 1.0,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 232,
+    "name": "Voltage",
+    "type": "uint2",
+    "gain": 0.001,
+    "units": "volts",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 240,
+    "name": "Troll RPM Max",
+    "type": "uint1",
+    "gain": 10.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 241,
+    "name": "Troll RPM Min",
+    "type": "uint1",
+    "gain": 10.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 242,
+    "name": "Fuel Flow Max",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "liters/hour",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 243,
+    "name": "RPM Rev. Limit (Redline)",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 244,
+    "name": "Engine Type",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "00": "UNDEFINED",
+      "01": "2S_OUTBOARD",
+      "02": "4S_OUTBOARD",
+      "03": "STERN_NO_TROLL",
+      "04": "INBRD_NO_TROLL",
+      "05": "JET_DRIVE",
+      "06": "STERNDRIVE",
+      "07": "INBOARD",
+      "08": "MAKO"
+    },
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 250,
+    "name": "Depth",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "meters",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 251,
+    "name": "Seawater Temperature",
+    "type": "sint2",
+    "gain": 0.1,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 252,
+    "name": "Boat Speed",
+    "type": "uint2",
+    "gain": 0.1,
+    "units": "km/hour",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 270,
+    "name": "Optional Temperature",
+    "type": "sint2",
+    "gain": 0.1,
+    "units": "degrees C",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 272,
+    "name": "Optional Temperature Data Valid",
+    "type": "boolean",
+    "gain": 1.0,
+    "units": "Flag",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 300,
+    "name": "Engine Run Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 310,
+    "name": "Band 1 Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 311,
+    "name": "Band 1 Low",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 312,
+    "name": "Band 1 High",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 320,
+    "name": "Band 2 Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 321,
+    "name": "Band 2 Low",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 322,
+    "name": "Band 2 High",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 330,
+    "name": "Band 3 Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 331,
+    "name": "Band 3 Low",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 332,
+    "name": "Band 3 High",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 340,
+    "name": "Band 4 Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 341,
+    "name": "Band 4 Low",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 342,
+    "name": "Band 4 High",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 350,
+    "name": "Band 5 Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 351,
+    "name": "Band 5 Low",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 352,
+    "name": "Band 5 High",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 360,
+    "name": "Band 6 Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 361,
+    "name": "Band 6 Low",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 362,
+    "name": "Band 6 High",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 370,
+    "name": "Band 7 Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 371,
+    "name": "Band 7 Low",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 372,
+    "name": "Band 7 High",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 380,
+    "name": "Band 8 Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 381,
+    "name": "Band 8 Low",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 382,
+    "name": "Band 8 High",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 390,
+    "name": "Band 9 Time",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 391,
+    "name": "Band 9 Low",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 392,
+    "name": "Band 9 High",
+    "type": "uint1",
+    "gain": 50.0,
+    "units": "revs/minute",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 900,
+    "name": "Project ID",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "27": "Mercury (outb.)",
+      "41": "merCruiser",
+      "43": "Demo"
+    },
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 901,
+    "name": "BootVerMaj",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 902,
+    "name": "BootVerMin",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 903,
+    "name": "EcuHwMaj",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 904,
+    "name": "EcuHwMin",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 4000,
+    "name": "Engine 1 Software Id",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4001,
+    "name": "Engine 2 Software Id",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4002,
+    "name": "Engine 3 Software Id",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4003,
+    "name": "Engine 4 Software Id",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4004,
+    "name": "Engine 1 Calibration Id",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4005,
+    "name": "Engine 2 Calibration Id",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4006,
+    "name": "Engine 3 Calibration Id",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4007,
+    "name": "Engine 4 Calibration Id",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4008,
+    "name": "Engine 1 Serial Number",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4009,
+    "name": "Engine 2 Serial Number",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4010,
+    "name": "Engine 3 Serial Number",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4011,
+    "name": "Engine 4 Serial Number",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4012,
+    "name": "ECU 1 Serial Number",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4013,
+    "name": "ECU 2 Serial Number",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4014,
+    "name": "ECU 3 Serial Number",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4015,
+    "name": "ECU 4 Serial Number",
+    "type": "string",
+    "gain": 1.0,
+    "units": "",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4016,
+    "name": "Tank 1 Capacity",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4017,
+    "name": "Tank 2 Capacity",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4018,
+    "name": "Tank 3 Capacity",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4019,
+    "name": "Tank 4 Capacity",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4020,
+    "name": "Tank 5 Capacity",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4021,
+    "name": "Tank 6 Capacity",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4022,
+    "name": "Tank 7 Capacity",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4023,
+    "name": "Tank 8 Capacity",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4024,
+    "name": "Tank 1 ADC Full",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4025,
+    "name": "Tank 2 ADC Full",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4026,
+    "name": "Tank 3 ADC Full",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4027,
+    "name": "Tank 4 ADC Full",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4028,
+    "name": "Tank 5 ADC Full",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4029,
+    "name": "Tank 6 ADC Full",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4030,
+    "name": "Tank 7 ADC Full",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4031,
+    "name": "Tank 8 ADC Full",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4032,
+    "name": "Tank 1 ADC Empty",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4033,
+    "name": "Tank 2 ADC Empty",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4034,
+    "name": "Tank 3 ADC Empty",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4035,
+    "name": "Tank 4 ADC Empty",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4036,
+    "name": "Tank 5 ADC Empty",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4037,
+    "name": "Tank 6 ADC Empty",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4038,
+    "name": "Tank 7 ADC Empty",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4039,
+    "name": "Tank 8 ADC Empty",
+    "type": "uint2",
+    "gain": 1.0,
+    "units": "A/D Counts",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4040,
+    "name": "Fuel Onboard",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4041,
+    "name": "Max Engines Connected",
+    "type": "uint1",
+    "gain": 1.0,
+    "units": "Engines",
+    "enum": null,
+    "bits": null,
+    "access": "UserVar/-"
+  },
+  {
+    "id": 4042,
+    "name": "Software Calibration or Serial Changed",
+    "type": "8bit",
+    "gain": 1.0,
+    "units": "Bitfield",
+    "enum": null,
+    "bits": "{0-1:Engine 1,1-1:Engine 2,2-1:Engine 3,3-1:Engine 4}",
+    "access": "UserVar/-"
+  },
+  {
+    "id": 6000,
+    "name": "Fuel Burned Trip A",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 6001,
+    "name": "Fuel Burned Trip B",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 6002,
+    "name": "Duration Trip A",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 6003,
+    "name": "Duration Trip B",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 6004,
+    "name": "Fuel Flow Average Trip A",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "liters/hour",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 6005,
+    "name": "Fuel Flow Average Trip B",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "liters/hour",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 6006,
+    "name": "Fuel Burned Current",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 6007,
+    "name": "Duration Current",
+    "type": "uint4",
+    "gain": 1.0,
+    "units": "minutes",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 6008,
+    "name": "Fuel Flow Average Current",
+    "type": "uint2",
+    "gain": 0.01,
+    "units": "liters/hour",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Engines"
+  },
+  {
+    "id": 8000,
+    "name": "Fuel Remaining",
+    "type": "uint4",
+    "gain": 0.01,
+    "units": "liters",
+    "enum": null,
+    "bits": null,
+    "access": "Channel/Vessel"
+  },
+  {
+    "id": 10000,
+    "name": "Active Engines",
+    "type": "8bit",
+    "gain": 1.0,
+    "units": "Bitfield",
+    "enum": null,
+    "bits": "{0-1:Engine 1,1-1:Engine 2,2-1:Engine 3,3-1:Engine 4}",
+    "access": "UserVar,Channel/Vessel"
+  },
+  {
+    "id": 10001,
+    "name": "Key Switch State",
+    "type": "boolean",
+    "gain": 1.0,
+    "units": "enumerated",
+    "enum": {
+      "0": "Off",
+      "1": "On"
+    },
+    "bits": null,
+    "access": "UserVar,Channel/Vessel"
+  }
+]
