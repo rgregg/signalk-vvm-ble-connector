@@ -719,14 +719,23 @@ git commit -m "refactor: parse runtime channel map into active data-item IDs"
 **Files:**
 - Modify: `vvm_to_signalk/ble_connection.py`
 - Modify: `vvm_to_signalk/signalk_publisher.py`
+- Modify: `vvm_to_signalk/csv_writer.py` (second receiver — same interface migration)
+- Modify: `vvm_to_signalk/vvm_monitor.py` (remove dead `EngineParameter` import/method)
 - Delete: `vvm_to_signalk/conversion.py`
-- Test: `tests/test_blelogic.py` (update existing), `tests/test_signalk_publisher.py` (update)
+- Test: `tests/test_blelogic.py` (update), `tests/test_signalk_publisher.py` (update), `tests/test_csv_writer.py` (rewrite)
 
 **Interfaces:**
 - Consumes: `DataDictionary`, `decode_notification` (Task 2); `signalk_path`, `to_si` (Tasks 3–4); `ConfigDecoder.active_data_item_ids` (Task 5).
 - Produces: BLE layer calls `receiver.accept_engine_data(item, engine_id, value_in_units)`
   for each engine value of each channel notification, and tracks the active-engine set from
-  data-item 10000.
+  data-item 10000. Both receivers (`SignalKPublisher`, `CsvWriter`) implement the updated
+  `EngineDataReceiver` Protocol from Task 5: `accept_engine_data(item, engine_id, value)` and
+  `update_active_items(item_ids)`.
+
+> **Context (plan amendment):** `CsvWriter` and `vvm_monitor.py` also import the now-deleted
+> `EngineParameter`. They are migrated here so the full suite goes green at the end of this
+> task. `vvm_monitor.publish_data_func` is dead code (never called — receivers are wired via
+> `accept_data_receiver`) and is removed.
 
 - [ ] **Step 1: Write the failing test (fake receiver captures decoded values)**
 
@@ -909,16 +918,156 @@ Delete `vvm_to_signalk/conversion.py` and `tests/test_conversion.py`.
 git rm vvm_to_signalk/conversion.py tests/test_conversion.py
 ```
 
+- [ ] **Step 5b: Migrate CsvWriter to the new receiver interface**
+
+`CsvWriter` is the second `EngineDataReceiver`. Replace its `EngineParameter`-based methods
+with the new signature. Columns are discovered lazily (the device's engine/item set is only
+known at runtime). Replace the top imports and the `CsvWriter` class body (keep
+`CsvWriterConfig` unchanged):
+
+```python
+# vvm_to_signalk/csv_writer.py  (imports — remove EngineParameter and Any)
+import asyncio
+import csv
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+```
+
+```python
+# Replace the CsvWriter methods update_engine_parameters / open_output_file /
+# accept_engine_data / key_for_param / _flush_timer_task / flush_queue_to_csv / __exit__
+# with:
+    def update_active_items(self, item_ids: list[int]) -> None:
+        """Part of the receiver interface; CSV columns are discovered lazily on first flush."""
+
+    async def accept_engine_data(self, item, engine_id: int, value) -> None:
+        """Record one engine's latest value and schedule a flush."""
+        if not self.__config.enabled:
+            return
+        self.__data[self.key_for(item, engine_id)] = value
+        self.__data["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if self.__timer is None:
+            self.__timer = asyncio.create_task(self._flush_timer_task())
+
+    @staticmethod
+    def key_for(item, engine_id: int) -> str:
+        """Column key for an engine's data item."""
+        return f"{engine_id}_{item.name}"
+
+    def _ensure_writer(self) -> bool:
+        """Open the file and write the header from the keys seen so far (once)."""
+        if self.__wrote_fieldnames:
+            return True
+        if not self.__config.enabled:
+            return False
+        keys = sorted(k for k in self.__data if k != "timestamp")
+        if not keys:
+            return False
+        self.__fieldnames = ["timestamp"] + keys
+        try:
+            self.__output_stream = open(self.__config.filename, "a", newline="", encoding="utf-8")
+            self.__writer = csv.DictWriter(self.__output_stream, fieldnames=self.__fieldnames,
+                                           extrasaction="ignore")
+            self.__writer.writeheader()
+            self.__wrote_fieldnames = True
+            return True
+        except OSError as err:
+            logger.warning("Unable to open CSV output file: %s", err)
+            self.__config.enabled = False
+            return False
+
+    async def _flush_timer_task(self):
+        await asyncio.sleep(self.__flush_interval)
+        await self.flush_queue_to_csv()
+        self.__timer = None
+
+    async def flush_queue_to_csv(self):
+        """Write the current row to the CSV file."""
+        if not self._ensure_writer():
+            return
+        self.__writer.writerow(self.__data)
+        self.__output_stream.flush()
+
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+        if self.__output_stream is not None:
+            self.__output_stream.close()
+```
+
+Also ensure `__init__` keeps these attributes (it already does): `self.__data = {}`,
+`self.__timer = None`, `self.__fieldnames = None`, `self.__wrote_fieldnames = False`,
+`self.__output_stream = None`, `self.__writer = None`,
+`self.__flush_interval = config.flush_interval`.
+
+Rewrite `tests/test_csv_writer.py` for the new interface:
+
+```python
+# tests/test_csv_writer.py  (replace file contents)
+import asyncio
+from vvm_to_signalk.csv_writer import CsvWriter, CsvWriterConfig
+
+
+class FakeItem:
+    def __init__(self, name):
+        self.name = name
+
+
+def test_csv_writes_header_and_row(tmp_path):
+    path = tmp_path / "data.csv"
+    cfg = CsvWriterConfig({"enabled": True, "filename": str(path), "interval": 0.01})
+    writer = CsvWriter(cfg)
+
+    async def run():
+        await writer.accept_engine_data(FakeItem("RPM"), 1, 600.0)
+        await asyncio.sleep(0.05)  # let the flush timer fire
+
+    asyncio.get_event_loop().run_until_complete(run())
+    text = path.read_text()
+    assert "timestamp,1_RPM" in text
+    assert "600.0" in text
+
+
+def test_csv_disabled_writes_nothing(tmp_path):
+    path = tmp_path / "data.csv"
+    cfg = CsvWriterConfig({"enabled": False, "filename": str(path), "interval": 0.01})
+    writer = CsvWriter(cfg)
+
+    async def run():
+        await writer.accept_engine_data(FakeItem("RPM"), 1, 600.0)
+        await asyncio.sleep(0.03)
+
+    asyncio.get_event_loop().run_until_complete(run())
+    assert not path.exists()
+```
+
+- [ ] **Step 5c: Remove the dead `EngineParameter` use in vvm_monitor.py**
+
+In `vvm_to_signalk/vvm_monitor.py`: delete the import line
+`from .config_decoder import EngineParameter`, and delete the unused `publish_data_func`
+method entirely (it is never called — receivers are wired through `accept_data_receiver`):
+
+```python
+# DELETE this whole method from VesselViewMobileDataRecorder:
+    async def publish_data_func(self, param:EngineParameter, value):
+        """Callback for publishing data to the websocket"""
+        if self.__signalk_socket is not None:
+            await self.__signalk_socket.accept_engine_data(param, value)
+        if self.__csv_writer is not None:
+            await self.__csv_writer.accept_engine_data(param, value)
+```
+
 - [ ] **Step 6: Run the full suite**
 
 Run: `pytest -q`
-Expected: PASS (update any remaining references to removed symbols until green)
+Expected: PASS. If anything still references removed symbols, fix until green
+(`grep -rn "EngineParameter\|conversion import\|Conversion" vvm_to_signalk tests`).
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add -A
-git commit -m "refactor: dictionary-driven multi-engine decode in BLE + publisher"
+git commit -m "refactor: dictionary-driven multi-engine decode across receivers"
 ```
 
 ---
