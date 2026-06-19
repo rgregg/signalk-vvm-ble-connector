@@ -1,9 +1,8 @@
 """Configuration module"""
 
 import logging
-from enum import Enum
 from collections.abc import Iterable
-from typing import Protocol, Any
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -12,8 +11,8 @@ class ConfigDecoder:
     def __init__(self):
         self.__known_data = []  # array of byte arrays
         self.__has_all_data = None
-        self.__parameters = []
-    
+        self.__active_ids = []
+
     def add(self, item):
         """Adds a new data packet to the decoder"""
         if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
@@ -32,23 +31,20 @@ class ConfigDecoder:
                 pass
 
         return self.__has_all_data
-    
+
     @has_all_data.setter
     def has_all_data(self, value):
         self.__has_all_data = value
 
-    @property
-    def engine_parameters(self):
-        """List of engine parameters detected"""
-        return self.__parameters
-    
-    @engine_parameters.setter
-    def engine_parameters(self, value):
-        self.__parameters = value
+    def active_data_item_ids(self) -> list[int]:
+        """Data-item IDs the device will stream, in slot order (zero slots dropped)."""
+        if self.__has_all_data is None:
+            self.has_all_data  # trigger parse
+        return self.__active_ids
 
-    def combine_and_parse_data(self) -> list['EngineParameter']:
+    def combine_and_parse_data(self) -> list[int]:
         """Combine data received from the device into one package"""
-        
+
         # sort known_data by the first byte
         data = self.__known_data
         logger.debug("Starting data: %s", data)
@@ -65,7 +61,7 @@ class ConfigDecoder:
 
         return self.parse_params(combined)
 
-    def parse_params(self, combined_data) -> list['EngineParameter']:
+    def parse_params(self, combined_data) -> list[int]:
         """Parse parameters to make sure they are valid"""
 
         # check to see if we have a valid header on the data
@@ -86,28 +82,26 @@ class ConfigDecoder:
             self.has_all_data = False
             raise ValueError(f"Expected {length_of_data} bytes, but only have {actual_length}.")
 
-        # parse the data into output
+        # parse the data into active data-item IDs
         magic_number, parsing_data = ConfigDecoder.pop_bytes(combined_data[3:], 2)
         logger.debug("Magic number was %s", magic_number.hex())
-        found_params = []
+        found_ids = []
         while len(parsing_data) != 0:
-            next_param, parsing_data = ConfigDecoder.pop_bytes(parsing_data, 4)
-            param_id = int.from_bytes(next_param[:2])
-            header_id = int.from_bytes(next_param[2:])
-            logger.debug("Parameter: %s with header: %s", param_id, header_id)
-            found_params.append(EngineParameter(param_id, header_id))
-
+            next_pair, parsing_data = ConfigDecoder.pop_bytes(parsing_data, 4)
+            # bytes 0-1 = slot index, bytes 2-3 = data-item id (little-endian)
+            data_item_id = int.from_bytes(next_pair[2:4], byteorder="little")
+            if data_item_id != 0:
+                found_ids.append(data_item_id)
             remaining_bytes = len(parsing_data)
             if 0 < remaining_bytes < 4:
-                logger.debug("Remaining bytes (%s) indicate the data is incomplete.", remaining_bytes)
+                logger.debug("Remaining bytes (%s) indicate incomplete data.", remaining_bytes)
                 self.has_all_data = False
                 raise ValueError("Incorrect data length.")
 
-        self.engine_parameters = found_params
+        self.__active_ids = found_ids
         self.has_all_data = True
-        
-        return found_params
-    
+        return found_ids
+
     @staticmethod
     def pop_bytes(byte_array, num_bytes):
         """Pops a count of bytes off the begining of an array"""
@@ -117,73 +111,12 @@ class ConfigDecoder:
         remaining_bytes = byte_array[num_bytes:]
         return popped_bytes, remaining_bytes
 
-class EngineParameterType(Enum):
-    """Known parameter types for Vessel View"""
-
-    ENGINE_RPM = 0
-    COOLANT_TEMPERATURE = 1
-    BATTERY_VOLTAGE = 2
-    UNKNOWN_3 = 3
-    ENGINE_RUNTIME = 4
-    CURRENT_FUEL_FLOW = 5
-    UNKNOWN_6 = 6
-    UNKNOWN_7 = 7
-    OIL_PRESSURE = 8
-    WATER_PRESSURE = 9
-    UNKNOWN_A = 10
-    UNKNOWN_B = 11
-    UNKNOWN_C = 12
-    UNKNOWN_D = 13
-    UNKNOWN_E = 14
-    UNKNOWN_F = 15
-
-class EngineParameter:
-    """Represents a single engine parameter and the decoded details"""
-
-    def __init__(self, parameter: int, notification_header: int):
-        self.__parameter_id = parameter
-        self.__notification_header = notification_header
-        self.__param_enabled = (notification_header != 0)
-        self.__engine_id = parameter >> 8
-        self.__parameter_type = EngineParameterType(parameter & 0xFF)
-
-    def __str__(self):
-        return f"EngineParameter(id={self.parameter_id}, header={self.notification_header}, type={self.parameter_type.name}, engine={self.engine_id})"
-
-    @property
-    def parameter_id(self):
-        """Parameters unique ID"""
-        return self.__parameter_id
-    
-    @property
-    def notification_header(self):
-        """The first two bytes of a notiifcation for this parameter"""
-        return self.__notification_header
-
-    @property
-    def enabled(self):
-        """Enable collecting data for this parameter"""
-        return self.__param_enabled
-    
-    @property
-    def engine_id(self):
-        """Engine ID"""
-        return self.__engine_id
-    
-    @property
-    def parameter_type(self):
-        """Returns the parameter type"""
-        return self.__parameter_type
-   
-    def is_unknown(self):
-        """Returns True if the parameter is a known parameter."""
-        return "unknown" in self.parameter_type.name.lower()
 
 # pylint: disable=missing-function-docstring
 class EngineDataReceiver(Protocol):
-    """Protocol for classes that can receive engine data"""
-    async def accept_engine_data(self, param: EngineParameter, value: Any) -> None:
+    """Protocol for classes that can receive decoded engine data."""
+    async def accept_engine_data(self, item, engine_id: int, value: float) -> None:
         ...
 
-    def update_engine_parameters(self, parameters: list[EngineParameter]) -> None:
+    def update_active_items(self, item_ids: list[int]) -> None:
         ...
