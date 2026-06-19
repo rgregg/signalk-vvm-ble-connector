@@ -206,6 +206,28 @@ class SignalKPublisher:
             except Exception as e:
                 logger.warning("Error sending on websocket: %s", e)
 
+    async def accept_fault(self, fault):
+        """Publish a fault as a SignalK notification delta."""
+        label = engine_label(fault.engine_position, self.__config.engine_labels)
+        path = f"notifications.propulsion.{label}.vvmFault.{fault.fault_key}"
+        value = {
+            "state": "alarm" if fault.is_active else "normal",
+            "method": ["visual", "sound"] if fault.is_active else [],
+            "message": f"Engine {fault.engine_position} fault {fault.fault_key}"
+                       + ("" if fault.is_active else " cleared"),
+            "vvm": {
+                "faultId": fault.fault_id,
+                "failureTypeId": fault.failure_type_id,
+                "severity": fault.severity,
+                "type": fault.fault_type,
+            },
+        }
+        if self.socket_connected:
+            try:
+                await self.__websocket.send(json.dumps(self.generate_delta(path, value)))
+            except Exception as e:
+                logger.warning("Error sending fault on websocket: %s", e)
+
 class SignalKConfig:
     """Defines the configuration for the SignalK server"""
     def __init__(self, data: dict = None):

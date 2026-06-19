@@ -1,8 +1,36 @@
 """Tests for the SignalK Publisher"""
 
+import asyncio
+import json
 import unittest
 from unittest.mock import AsyncMock
 from vvm_to_signalk.signalk_publisher import SignalKPublisher, SignalKConfig
+from vvm_to_signalk.fault_decoder import Fault
+
+
+class FakeWS:
+    def __init__(self): self.sent = []
+    async def send(self, msg): self.sent.append(json.loads(msg))
+
+
+def test_accept_fault_emits_notification():
+    pub = SignalKPublisher(SignalKConfig({"websocket-url": "ws://x"}), {})
+    ws = FakeWS()
+    pub._SignalKPublisher__websocket = ws
+    pub.socket_connected = True
+    fault = Fault("Legacy", 1, True, 1111)
+    asyncio.run(pub.accept_fault(fault))
+    delta = ws.sent[0]["updates"][0]["values"][0]
+    assert delta["path"] == "notifications.propulsion.starboard.vvmFault.1111-Legacy"
+    assert delta["value"]["state"] == "alarm"
+    assert delta["value"]["vvm"]["faultId"] == 1111
+
+
+def test_accept_fault_cleared_is_normal():
+    pub = SignalKPublisher(SignalKConfig({"websocket-url": "ws://x"}), {})
+    ws = FakeWS(); pub._SignalKPublisher__websocket = ws; pub.socket_connected = True
+    asyncio.run(pub.accept_fault(Fault("Legacy", 1, False, 1111)))
+    assert ws.sent[0]["updates"][0]["values"][0]["value"]["state"] == "normal"
 
 
 class FakeItem:

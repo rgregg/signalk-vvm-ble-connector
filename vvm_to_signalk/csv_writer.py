@@ -24,6 +24,9 @@ class CsvWriter:
     def update_active_items(self, item_ids: list[int]) -> None:
         """Part of the receiver interface; CSV columns are discovered lazily on first flush."""
 
+    async def accept_fault(self, fault) -> None:
+        """No-op: CSV writer does not record fault notifications."""
+
     async def accept_engine_data(self, item, engine_id: int, value) -> None:
         """Record one engine's latest value and schedule a flush."""
         if not self.__config.enabled:

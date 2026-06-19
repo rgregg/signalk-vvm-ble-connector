@@ -10,6 +10,7 @@ from bleak.exc import BleakCharacteristicNotFoundError
 from .futures_queue import FuturesQueue
 from .config_decoder import ConfigDecoder, EngineDataReceiver
 from .data_dictionary import DataDictionary, decode_notification
+from .fault_decoder import parse_fault
 
 logger = logging.getLogger(__name__)
 BLE_TIMEOUT = 30
@@ -195,12 +196,13 @@ class BleDeviceConnection:
         # Iterate over all characteristics in all services and subscribe
         for service in client.services:
             for characteristic in service.characteristics:
-                if "notify" in characteristic.properties:
+                props = characteristic.properties
+                if "notify" in props or "indicate" in props:
                     try:
                         await client.start_notify(characteristic.uuid, self.notification_handler)
                         logger.debug("Subscribed to %s", characteristic.uuid)
                     except Exception as e:
-                        logger.warning("Unable to subscribe to  %s: %s", characteristic.uuid, e)
+                        logger.warning("Unable to subscribe to %s: %s", characteristic.uuid, e)
     
 
     def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray):
@@ -247,8 +249,12 @@ class BleDeviceConnection:
             logger.info("Active engines: %s", sorted(self._active_engine_ids))
 
     def _handle_fault_notification(self, data: bytes):
-        """Handle a fault notification (Task 8 placeholder)."""
-        logger.debug("Fault notification received: %s", data.hex())
+        fault = parse_fault(data)
+        if fault is None:
+            return
+        logger.info("Fault received: %s", fault)
+        for receiver in self.__data_receivers:
+            asyncio.get_event_loop().create_task(receiver.accept_fault(fault))
 
     async def _initalize_vvm(self, client: BleakClient):
         """
