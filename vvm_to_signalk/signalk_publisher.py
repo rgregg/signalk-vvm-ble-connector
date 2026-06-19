@@ -228,6 +228,7 @@ class SignalKPublisher:
             except Exception as e:
                 logger.warning("Error sending fault on websocket: %s", e)
 
+
 class SignalKConfig:
     """Defines the configuration for the SignalK server"""
     def __init__(self, data: dict = None):

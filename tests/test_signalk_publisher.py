@@ -23,6 +23,7 @@ def test_accept_fault_emits_notification():
     delta = ws.sent[0]["updates"][0]["values"][0]
     assert delta["path"] == "notifications.propulsion.starboard.vvmFault.1111-Legacy"
     assert delta["value"]["state"] == "alarm"
+    assert delta["value"]["method"] == ["visual", "sound"]
     assert delta["value"]["vvm"]["faultId"] == 1111
 
 
@@ -30,7 +31,9 @@ def test_accept_fault_cleared_is_normal():
     pub = SignalKPublisher(SignalKConfig({"websocket-url": "ws://x"}), {})
     ws = FakeWS(); pub._SignalKPublisher__websocket = ws; pub.socket_connected = True
     asyncio.run(pub.accept_fault(Fault("Legacy", 1, False, 1111)))
-    assert ws.sent[0]["updates"][0]["values"][0]["value"]["state"] == "normal"
+    delta = ws.sent[0]["updates"][0]["values"][0]
+    assert delta["value"]["state"] == "normal"
+    assert delta["value"]["method"] == []
 
 
 class FakeItem:
