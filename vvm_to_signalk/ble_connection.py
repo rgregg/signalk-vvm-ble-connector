@@ -9,11 +9,16 @@ from bleak.uuids import normalize_uuid_16, uuid16_dict
 from bleak.exc import BleakCharacteristicNotFoundError
 from .futures_queue import FuturesQueue
 from .config_decoder import ConfigDecoder, EngineDataReceiver
-from .data_dictionary import DataDictionary, decode_notification
+from .data_dictionary import DataDictionary, decode_notification, build_channel_config
 from .fault_decoder import parse_fault
 
 logger = logging.getLogger(__name__)
 BLE_TIMEOUT = 30
+
+# offline alarm items to request if not already streamed
+OFFLINE_FAULT_ITEM_IDS = [87, 97, 106]   # Guardian Cause, Seven Function Gauge, MIL
+
+_CHANNEL_UUID_TEMPLATE = "000001{:02x}-0000-1000-8000-ec55f9f5b963"  # 0x02..0x10 -> chars
 
 class BleDeviceConnection:
     """Handles the connection to the BLE hardware device"""
@@ -33,6 +38,7 @@ class BleDeviceConnection:
         self._dictionary = DataDictionary.load()
         self._max_engines = 4
         self._active_engine_ids = None   # set from data-item 10000
+        self._last_active_ids = None     # set from runtime channel-map parse
 
     def accept_data_receiver(self, receiver: EngineDataReceiver) -> None:
         """Add a new data receiver to the collection"""
@@ -117,6 +123,7 @@ class BleDeviceConnection:
                     
                 logger.info("Configuring data streaming notifications...")
                 await self._setup_data_notifications(client)
+                await self._request_offline_fault_channels(client, self._last_active_ids or [])
 
                 logger.info("Enabling data streaming from BLE device")
                 await self._set_streaming_mode(client, enabled=True)
@@ -204,6 +211,26 @@ class BleDeviceConnection:
                     except Exception as e:
                         logger.warning("Unable to subscribe to %s: %s", characteristic.uuid, e)
     
+
+    async def _request_offline_fault_channels(self, client, active_ids):
+        """Configure spare channel slots to stream offline alarm items."""
+        # Channel characteristics are 0x102..0x110 (slots 1..15).
+        slot = len(active_ids)  # first unused slot index (0-based -> char 0x102+slot)
+        for item_id in OFFLINE_FAULT_ITEM_IDS:
+            if item_id in active_ids:
+                continue
+            if slot >= 15:
+                logger.warning("No spare channel slots for offline fault item %s", item_id)
+                break
+            char_uuid = _CHANNEL_UUID_TEMPLATE.format(0x02 + slot)
+            cfg = build_channel_config(item_id, engines=self._max_engines)
+            try:
+                await client.write_gatt_char(char_uuid, cfg, response=True)
+                await client.start_notify(char_uuid, self.notification_handler)
+                logger.info("Requested offline fault item %s on %s", item_id, char_uuid)
+                slot += 1
+            except Exception as e:
+                logger.warning("Could not request fault item %s on %s: %s", item_id, char_uuid, e)
 
     def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray):
         """Handles BLE notifications and indications."""
@@ -293,6 +320,7 @@ class BleDeviceConnection:
 
     def update_active_items(self, item_ids: list[int]) -> None:
         """Propagate the active data-item IDs to all registered receivers."""
+        self._last_active_ids = item_ids
         for receiver in self.__data_receivers:
             receiver.update_active_items(item_ids)
 

@@ -137,6 +137,22 @@ class DataDictionary:
         return self._items.get(item_id)
 
 
+def build_channel_config(data_item_id: int, engines: int = 4, rate: int = 20,
+                         samples: int = 0, vmin: int = 0, vmax: int = 0) -> bytes:
+    """6-byte channel configuration write (see docs/protocol-map.md §2.4)."""
+    cfg = bytearray(6)
+    cfg[0] = data_item_id & 0xFF
+    cfg[1] = (data_item_id >> 8) & 0xFF
+    mask = 0
+    for engine in range(1, min(engines, 4) + 1):
+        mask |= 1 << (engine - 1)
+    cfg[2] = (mask & 0x0F) | ((rate & 0x0F) << 4)
+    cfg[3] = ((rate & 0xFFF0) >> 4) | ((samples & 0x03) << 6)
+    cfg[4] = vmin & 0xFF
+    cfg[5] = vmax & 0xFF
+    return bytes(cfg)
+
+
 def decode_notification(data: bytes, dictionary: DataDictionary,
                         max_engines: int = 4) -> tuple[DataItem | None, list[float]]:
     """Decode a channel notification into (DataItem, per-engine values)."""

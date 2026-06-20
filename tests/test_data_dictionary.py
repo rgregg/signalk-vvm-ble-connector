@@ -69,3 +69,14 @@ def test_render_bits_seven_function_gauge():
     assert flags["Water in Fuel"] == 1
     assert flags["Oil Fault"] == 0
     assert "Reserved" not in flags  # reserved bits are dropped
+
+from vvm_to_signalk.data_dictionary import build_channel_config
+
+def test_build_channel_config_rpm_like():
+    # id=87 (0x57), 1 engine, rate=20 (0x14), samples=0
+    cfg = build_channel_config(87, engines=1, rate=20)
+    assert len(cfg) == 6
+    assert cfg[0] == 0x57 and cfg[1] == 0x00        # id LE
+    assert cfg[2] == (0b0001 | ((20 & 0xF) << 4))   # engine bit 1 + rate low nibble
+    assert cfg[3] == ((20 & 0xFFF0) >> 4) | (0 << 6)
+    assert cfg[4] == 0 and cfg[5] == 0
