@@ -2,12 +2,22 @@
 
 import json
 import logging
+import re
 import uuid
 import asyncio
 import websockets
 
 from .futures_queue import FuturesQueue
 from .signalk_mapping import signalk_path, to_si, engine_label
+
+_OFFLINE_FAULT_IDS = {87, 106}     # enum-style single alarm (Guardian Cause, MIL)
+_BITFIELD_FAULT_IDS = {97}         # one notification per bit (Seven Function Gauge)
+
+
+def _camel(name):
+    """Convert a flag name to camelCase for use in SignalK paths."""
+    parts = [p for p in re.split(r"[^0-9A-Za-z]+", name) if p]
+    return parts[0].lower() + "".join(p.capitalize() for p in parts[1:]) if parts else "flag"
 
 logger = logging.getLogger(__name__)
 
@@ -187,8 +197,37 @@ class SignalKPublisher:
     def update_active_items(self, item_ids):
         """No-op: the publisher maps each value as it arrives."""
 
+    async def _send_notification(self, path, state, message, extra=None):
+        """Send a SignalK notification delta for the given path."""
+        value = {"state": state,
+                 "method": ["visual", "sound"] if state == "alarm" else [],
+                 "message": message}
+        if extra:
+            value["vvm"] = extra
+        if self.socket_connected:
+            try:
+                await self.__websocket.send(json.dumps(self.generate_delta(path, value)))
+            except Exception as e:
+                logger.warning("Error sending notification: %s", e)
+
     async def accept_engine_data(self, item, engine_id, value) -> None:
         """Publish a decoded engine value as a SignalK delta."""
+        label = engine_label(engine_id, self.__config.engine_labels)
+        if item.id in _OFFLINE_FAULT_IDS:
+            text = item.render_enum(value) or str(int(value))
+            inactive = int(value) == 0  # 0 == GC_NONE / MIL Off
+            await self._send_notification(
+                f"notifications.propulsion.{label}.{_camel(item.name)}",
+                "normal" if inactive else "alarm",
+                f"Engine {engine_id} {item.name}: {text}")
+            return
+        if item.id in _BITFIELD_FAULT_IDS:
+            for flag_name, flag_val in item.render_bits(value).items():
+                await self._send_notification(
+                    f"notifications.propulsion.{label}.{_camel(flag_name)}",
+                    "alarm" if flag_val else "normal",
+                    f"Engine {engine_id} {flag_name}: {'active' if flag_val else 'clear'}")
+            return
         path = signalk_path(item, engine_id, self.__config.engine_labels,
                             include_unmapped=self.__config.send_unknown_parameters)
         if path is None:

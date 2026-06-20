@@ -118,5 +118,60 @@ def test_engine_labels_default_none():
     assert SignalKConfig({"websocket-url": "ws://x"}).engine_labels is None
 
 
+def test_guardian_cause_active_emits_alarm():
+    p = SignalKPublisher(SignalKConfig({"websocket-url": "ws://x"}), {})
+    from vvm_to_signalk.data_dictionary import DataDictionary
+    D = DataDictionary.load()
+
+    class WS:
+        def __init__(self): self.sent = []
+        async def send(self, m): self.sent.append(json.loads(m))
+
+    ws = WS()
+    p._SignalKPublisher__websocket = ws
+    p.socket_connected = True
+    asyncio.run(p.accept_engine_data(D.by_id(87), 1, 4))  # GC_LOW_OIL
+    v = ws.sent[0]["updates"][0]["values"][0]
+    assert v["path"] == "notifications.propulsion.starboard.guardianCause"
+    assert v["value"]["state"] == "alarm"
+    assert v["value"]["message"].endswith("GC_LOW_OIL")
+
+
+def test_guardian_cause_none_is_normal():
+    p = SignalKPublisher(SignalKConfig({"websocket-url": "ws://x"}), {})
+    from vvm_to_signalk.data_dictionary import DataDictionary
+    D = DataDictionary.load()
+
+    class WS:
+        def __init__(self): self.sent = []
+        async def send(self, m): self.sent.append(json.loads(m))
+
+    ws = WS()
+    p._SignalKPublisher__websocket = ws
+    p.socket_connected = True
+    asyncio.run(p.accept_engine_data(D.by_id(87), 1, 0))  # GC_NONE
+    assert ws.sent[0]["updates"][0]["values"][0]["value"]["state"] == "normal"
+
+
+def test_seven_function_gauge_emits_per_flag():
+    p = SignalKPublisher(SignalKConfig({"websocket-url": "ws://x"}), {})
+    from vvm_to_signalk.data_dictionary import DataDictionary
+    D = DataDictionary.load()
+
+    class WS:
+        def __init__(self): self.sent = []
+        async def send(self, m): self.sent.append(json.loads(m))
+
+    ws = WS()
+    p._SignalKPublisher__websocket = ws
+    p.socket_connected = True
+    asyncio.run(p.accept_engine_data(D.by_id(97), 1, 0b00100))
+    paths = {u["updates"][0]["values"][0]["path"]: u["updates"][0]["values"][0]["value"]
+             for u in ws.sent}
+    assert "notifications.propulsion.starboard.guardianCheckEngine" in paths
+    assert paths["notifications.propulsion.starboard.guardianCheckEngine"]["state"] == "alarm"
+    assert paths["notifications.propulsion.starboard.oilFault"]["state"] == "normal"
+
+
 if __name__ == '__main__':
     unittest.main()
