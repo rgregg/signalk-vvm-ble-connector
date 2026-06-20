@@ -53,6 +53,27 @@ docker run  \
   vvm_monitor
 ```
 
+### Image tags
+
+Images are published to Docker Hub as [`rgregg/vvm_monitor`](https://hub.docker.com/r/rgregg/vvm_monitor) with the following tags:
+
+| Tag | Points to | Use when you want… |
+| --- | --- | --- |
+| `latest` | the newest release | the latest stable version |
+| `1.2.3` | one exact release | to pin an exact version |
+| `1.2` | newest patch of 1.2 | bug-fix updates, no new features |
+| `1` | newest 1.x release | feature updates, no breaking changes |
+| `edge` | the tip of `main` | the bleeding edge (may be unstable) |
+| `pr-<n>` | an open pull request | trying a change before it merges |
+
+For production, pin to a major or major-minor tag (e.g. `rgregg/vvm_monitor:1` or `:1.2`) so you get fixes without surprises. The image also records its version in the standard `org.opencontainers.image.version` label (`docker inspect`).
+
+Releases are cut by pushing a semver git tag (or publishing a GitHub Release):
+
+```bash
+git tag v1.2.3 && git push origin v1.2.3
+```
+
 ### Running as a non-root user
 
 The container runs as an unprivileged user (`vvm`, UID/GID `1000`) rather than root.
