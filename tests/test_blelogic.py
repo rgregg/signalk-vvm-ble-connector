@@ -5,6 +5,7 @@ import unittest
 import asyncio
 import sys
 from bleak import BleakGATTCharacteristic
+from bleak.exc import BleakCharacteristicNotFoundError
 from vvm_to_signalk.ble_connection import BleDeviceConnection, BleConnectionConfig
 from vvm_to_signalk.config_decoder import ConfigDecoder
 from vvm_to_signalk.data_dictionary import DataDictionary
@@ -73,6 +74,49 @@ def test_inactive_engine_excluded():
     asyncio.get_event_loop().run_until_complete(asyncio.sleep(0))
     assert (1, 1, 600.0) in rx.calls
     assert all(engine_id != 2 for _id, engine_id, _value in rx.calls)
+
+
+def test_failing_receiver_exception_is_logged(caplog):
+    """A receiver that raises must have its exception observed and logged,
+    not silently swallowed by a fire-and-forget task."""
+    conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+
+    class FailingReceiver:
+        """Receiver that always raises when handed data"""
+        async def accept_engine_data(self, item, engine_id, value):
+            raise RuntimeError("boom")
+
+        def update_active_items(self, item_ids):
+            pass
+
+    conn.accept_data_receiver(FailingReceiver())
+    conn._dictionary = DataDictionary.load()
+    conn._max_engines = 1
+
+    with caplog.at_level(logging.WARNING, logger="vvm_to_signalk.ble_connection"):
+        conn.notification_handler(FakeChar("00000102-0000-1000-8000-ec55f9f5b963"),
+                                  bytearray.fromhex("0100" + "5802"))
+        # allow the scheduled task and its done-callback to run
+        asyncio.get_event_loop().run_until_complete(asyncio.sleep(0.01))
+
+    assert any("boom" in r.getMessage() for r in caplog.records)
+
+
+def test_retrieve_device_info_handles_missing_characteristics():
+    """A device missing standard characteristics must not crash init."""
+    conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+
+    class MissingCharsClient:
+        """Fake client whose characteristic reads all report 'not found'"""
+        is_connected = True
+
+        async def read_gatt_char(self, uuid):
+            """Every standard characteristic is absent on this device"""
+            raise BleakCharacteristicNotFoundError(uuid)
+
+    # Must not raise even though every characteristic read returns None
+    asyncio.get_event_loop().run_until_complete(
+        conn._retrieve_device_info(MissingCharsClient()))
 
 
 if __name__ == "__main__":
