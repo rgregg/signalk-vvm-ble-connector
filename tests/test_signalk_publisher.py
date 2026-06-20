@@ -173,5 +173,24 @@ def test_seven_function_gauge_emits_per_flag():
     assert paths["notifications.propulsion.starboard.oilFault"]["state"] == "normal"
 
 
+def test_mil_on_emits_alarm():
+    p = SignalKPublisher(SignalKConfig({"websocket-url": "ws://x"}), {})
+    from vvm_to_signalk.data_dictionary import DataDictionary
+    D = DataDictionary.load()
+
+    class WS:
+        def __init__(self): self.sent = []
+        async def send(self, m): self.sent.append(json.loads(m))
+
+    ws = WS()
+    p._SignalKPublisher__websocket = ws
+    p.socket_connected = True
+    asyncio.run(p.accept_engine_data(D.by_id(106), 1, 1))  # MIL Constant On
+    v = ws.sent[0]["updates"][0]["values"][0]
+    assert v["path"] == "notifications.propulsion.starboard.malfunctionIndicatorLightMilData"
+    assert v["value"]["state"] == "alarm"
+    assert v["value"]["message"].endswith("MIL Constant On")
+
+
 if __name__ == '__main__':
     unittest.main()
