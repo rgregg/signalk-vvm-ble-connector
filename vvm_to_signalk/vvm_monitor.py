@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 import signal
-from datetime import datetime
+from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 
 import yaml
@@ -222,7 +222,7 @@ class VesselViewMobileDataRecorder:
         """Write the healthcheck status to a file"""
         while True:
             with open("/tmp/healthcheck", "w", encoding="utf-8") as f:
-                f.write(format_heartbeat(self.__health["signalk"], datetime.utcnow()))
+                f.write(format_heartbeat(self.__health["signalk"], datetime.now(timezone.utc)))
             await asyncio.sleep(15)
 
 class VVMConfig:
