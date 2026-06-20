@@ -53,6 +53,23 @@ docker run  \
   vvm_monitor
 ```
 
+### Running as a non-root user
+
+The container runs as an unprivileged user (`vvm`, UID/GID `1000`) rather than root.
+Two things to be aware of when deploying:
+
+- **Volume permissions**: any host directory you bind-mount for config or logs
+  (e.g. `./config`, `./logs`) must be readable/writable by UID `1000`. If you see
+  permission errors writing the log file, run
+  `sudo chown -R 1000:1000 ./config ./logs` on the host (or make them
+  world-writable).
+- **BLE access**: the container does not run its own `bluetoothd`; it talks to the
+  host's Bluetooth daemon through the mounted D-Bus socket
+  (`/run/dbus/system_bus_socket`). The host's D-Bus policy must allow UID `1000`
+  to use `org.bluez`. This works out of the box on most systems. If scanning or
+  connecting fails with a D-Bus permission error, add a host D-Bus policy rule for
+  that user, or as a fallback run the container as root with `--user 0:0`.
+
 ### Example configuration file
 
 Copy the text and place it into a folder which is mapped to `/app/config` in the container.
