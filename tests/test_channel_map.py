@@ -27,3 +27,19 @@ def test_active_ids_parsed_little_endian():
     dec.add(_packetize(RAW))
     assert dec.has_all_data
     assert dec.active_data_item_ids() == [1, 210, 232, 6000, 150, 10]
+
+
+def test_zero_id_slots_dropped():
+    # Unused slots carry id 0 (e.g. inactive engine placeholders) and must be dropped.
+    # payload = magic(2) + 3 pairs(12) = 14 bytes -> length byte 0x0e.
+    raw = bytes.fromhex(
+        "28" "0e" "00"   # header: marker, length=14, spacer
+        "0100"           # magic (discarded)
+        "0000" "0100"    # slot 0 -> id 1
+        "0100" "0000"    # slot 1 -> id 0 (dropped)
+        "0200" "e800"    # slot 2 -> id 232
+    )
+    dec = ConfigDecoder()
+    dec.add(_packetize(raw))
+    assert dec.has_all_data
+    assert dec.active_data_item_ids() == [1, 232]

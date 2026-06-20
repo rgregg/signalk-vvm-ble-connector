@@ -48,6 +48,33 @@ def test_notification_decodes_all_engines():
     assert (1, 2, 1000.0) in rx.calls
 
 
+def test_update_active_engines_parses_bitfield():
+    """Data-item 10000 (Active Engines) bitfield populates the active-engine set."""
+    conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+    conn._dictionary = DataDictionary.load()
+    # id 10000 (0x2710 -> LE "1027"), bitfield 0x03 = engines 1 and 2 active
+    conn.notification_handler(FakeChar("00000109-0000-1000-8000-ec55f9f5b963"),
+                              bytearray.fromhex("1027" + "03"))
+    asyncio.get_event_loop().run_until_complete(asyncio.sleep(0))
+    assert conn._active_engine_ids == {1, 2}
+
+
+def test_inactive_engine_excluded():
+    """Values for engines not in the active set are not published."""
+    conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+    rx = FakeReceiver()
+    conn.accept_data_receiver(rx)
+    conn._dictionary = DataDictionary.load()
+    conn._max_engines = 2
+    conn._active_engine_ids = {1}  # only engine 1 active
+    # id 1 (RPM), engine1=600 (0x0258), engine2=1000 (0x03E8)
+    conn.notification_handler(FakeChar("00000102-0000-1000-8000-ec55f9f5b963"),
+                              bytearray.fromhex("0100" + "5802" + "e803"))
+    asyncio.get_event_loop().run_until_complete(asyncio.sleep(0))
+    assert (1, 1, 600.0) in rx.calls
+    assert all(engine_id != 2 for _id, engine_id, _value in rx.calls)
+
+
 if __name__ == "__main__":
     logging.basicConfig(stream=sys.stderr)
     logging.getLogger().setLevel(logging.DEBUG)
