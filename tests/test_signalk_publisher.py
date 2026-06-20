@@ -192,5 +192,25 @@ def test_mil_on_emits_alarm():
     assert v["value"]["message"].endswith("MIL Constant On")
 
 
+def test_notification_deduped_until_state_changes():
+    p = SignalKPublisher(SignalKConfig({"websocket-url": "ws://x"}), {})
+    from vvm_to_signalk.data_dictionary import DataDictionary
+    D = DataDictionary.load()
+
+    class WS:
+        def __init__(self): self.sent = []
+        async def send(self, m): self.sent.append(json.loads(m))
+
+    ws = WS()
+    p._SignalKPublisher__websocket = ws
+    p.socket_connected = True
+    item = D.by_id(87)
+    asyncio.run(p.accept_engine_data(item, 1, 4))  # alarm -> sent
+    asyncio.run(p.accept_engine_data(item, 1, 4))  # same state -> deduped
+    assert len(ws.sent) == 1
+    asyncio.run(p.accept_engine_data(item, 1, 0))  # state change -> sent
+    assert len(ws.sent) == 2
+
+
 if __name__ == '__main__':
     unittest.main()

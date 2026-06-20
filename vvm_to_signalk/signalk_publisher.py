@@ -2,22 +2,15 @@
 
 import json
 import logging
-import re
 import uuid
 import asyncio
 import websockets
 
 from .futures_queue import FuturesQueue
-from .signalk_mapping import signalk_path, to_si, engine_label
+from .signalk_mapping import signalk_path, to_si, engine_label, _camel
 
 _OFFLINE_FAULT_IDS = {87, 106}     # enum-style single alarm (Guardian Cause, MIL)
 _BITFIELD_FAULT_IDS = {97}         # one notification per bit (Seven Function Gauge)
-
-
-def _camel(name):
-    """Convert a flag name to camelCase for use in SignalK paths."""
-    parts = [p for p in re.split(r"[^0-9A-Za-z]+", name) if p]
-    return parts[0].lower() + "".join(p.capitalize() for p in parts[1:]) if parts else "flag"
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +26,7 @@ class SignalKPublisher:
         self.__notifications = FuturesQueue()
         self.__health = health_status
         self.__should_log_connection_down = True
+        self.__last_notification_state = {}
 
     @property
     def websocket_url(self):
@@ -198,17 +192,22 @@ class SignalKPublisher:
         """No-op: the publisher maps each value as it arrives."""
 
     async def _send_notification(self, path, state, message, extra=None):
-        """Send a SignalK notification delta for the given path."""
+        """Send a SignalK notification delta, but only when the state changed since
+        the last published value for this path (avoids per-cycle notification spam)."""
+        if self.__last_notification_state.get(path) == state:
+            return
+        if not self.socket_connected:
+            return
         value = {"state": state,
                  "method": ["visual", "sound"] if state == "alarm" else [],
                  "message": message}
         if extra:
             value["vvm"] = extra
-        if self.socket_connected:
-            try:
-                await self.__websocket.send(json.dumps(self.generate_delta(path, value)))
-            except Exception as e:
-                logger.warning("Error sending notification: %s", e)
+        try:
+            await self.__websocket.send(json.dumps(self.generate_delta(path, value)))
+            self.__last_notification_state[path] = state
+        except Exception as e:
+            logger.warning("Error sending notification: %s", e)
 
     async def accept_engine_data(self, item, engine_id, value) -> None:
         """Publish a decoded engine value as a SignalK delta."""

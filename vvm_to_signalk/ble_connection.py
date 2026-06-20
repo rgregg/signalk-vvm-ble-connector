@@ -225,8 +225,9 @@ class BleDeviceConnection:
             char_uuid = _CHANNEL_UUID_TEMPLATE.format(0x02 + slot)
             cfg = build_channel_config(item_id, engines=self._max_engines)
             try:
+                # Notifications on all channel characteristics were already enabled by
+                # _setup_data_notifications; we only need to write the channel config here.
                 await client.write_gatt_char(char_uuid, cfg, response=True)
-                await client.start_notify(char_uuid, self.notification_handler)
                 logger.info("Requested offline fault item %s on %s", item_id, char_uuid)
                 slot += 1
             except Exception as e:
