@@ -4,6 +4,7 @@ import logging
 import unittest
 import asyncio
 import sys
+from unittest.mock import patch
 from bleak import BleakGATTCharacteristic
 from bleak.exc import BleakCharacteristicNotFoundError
 from vvm_to_signalk.ble_connection import BleDeviceConnection, BleConnectionConfig
@@ -117,6 +118,67 @@ def test_retrieve_device_info_handles_missing_characteristics():
     # Must not raise even though every characteristic read returns None
     asyncio.get_event_loop().run_until_complete(
         conn._retrieve_device_info(MissingCharsClient()))
+
+
+class Test_ConnectionLifecycle(unittest.IsolatedAsyncioTestCase):
+    """Tests for the connect / reconnect lifecycle"""
+
+    async def test_connection_timeout_passed_to_bleak_client(self):
+        """The configured connection timeout must be handed to BleakClient."""
+        config = BleConnectionConfig()
+        config.device_name = "UnitTestRunner"
+        config.connection_timeout = 17.0
+        decoder = BleDeviceConnection(config, {})
+
+        captured = {}
+
+        class FakeClient:
+            """Records constructor args then bails out of the context manager"""
+            def __init__(self, device, disconnected_callback=None, timeout=None, **kwargs):
+                captured["timeout"] = timeout
+
+            async def __aenter__(self):
+                raise RuntimeError("stop after construction")
+
+            async def __aexit__(self, *args):
+                return False
+
+        with patch("vvm_to_signalk.ble_connection.BleakClient", FakeClient):
+            await decoder._device_init_and_loop("fake-device")
+
+        assert captured["timeout"] == 17.0
+
+    async def test_run_backs_off_after_failed_connection(self):
+        """After a failed connection cycle the loop should wait retry_interval
+        before scanning again, instead of busy-looping."""
+        config = BleConnectionConfig()
+        config.device_name = "UnitTestRunner"
+        config.retry_interval = 7
+        decoder = BleDeviceConnection(config, {})
+
+        sleeps = []
+
+        async def fake_sleep(seconds):
+            sleeps.append(seconds)
+
+        cycles = {"n": 0}
+
+        async def fake_scan():
+            return "fake-device"
+
+        async def fake_init(_device):
+            cycles["n"] += 1
+            if cycles["n"] >= 2:
+                await decoder.close()
+            return False
+
+        decoder._scan_for_device = fake_scan
+        decoder._device_init_and_loop = fake_init
+
+        with patch("vvm_to_signalk.ble_connection.asyncio.sleep", fake_sleep):
+            await decoder.run(task_group=None)
+
+        assert 7 in sleeps
 
 
 if __name__ == "__main__":

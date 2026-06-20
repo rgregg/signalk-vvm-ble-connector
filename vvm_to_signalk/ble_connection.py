@@ -91,7 +91,14 @@ class BleDeviceConnection:
             logger.info("Starting device data loop")
             
             # configure the device and loop until abort or disconnect
-            await self._device_init_and_loop(found_device)
+            connected = await self._device_init_and_loop(found_device)
+
+            # If we never managed to connect, back off before retrying so a
+            # persistent device-side error doesn't busy-loop the scan/connect cycle.
+            if not connected and not self.__abort:
+                logger.info("Connection attempt failed; backing off for %s seconds before retrying",
+                            self.retry_interval)
+                await asyncio.sleep(self.retry_interval)
 
             logger.info("Returning to device scan loop")
 
@@ -106,15 +113,23 @@ class BleDeviceConnection:
             logger.info(message)
 
 
-    async def _device_init_and_loop(self, device):
-        """Initalize BLE device and loop receiving data"""
+    async def _device_init_and_loop(self, device) -> bool:
+        """Initalize BLE device and loop receiving data.
+
+        Returns True if a connection was established (and later disconnected),
+        or False if the attempt failed before connecting. The caller uses this
+        to decide whether to back off before retrying.
+        """
         monitor_task = None
+        connected = False
         try:
             async with BleakClient(device,
-                                    disconnected_callback=self.device_disconnected
+                                    disconnected_callback=self.device_disconnected,
+                                    timeout=self.__config.connection_timeout
                                     ) as client:
-                
+
                 self._set_health(True, "Connected to device")
+                connected = True
 
                 logger.info("Retrieving device identification metadata...")
                 await self._retrieve_device_info(client)
@@ -145,6 +160,8 @@ class BleDeviceConnection:
             if monitor_task:
                 monitor_task.cancel()
             self.__cancel_signal = asyncio.Future()
+
+        return connected
 
     async def _monitor_streaming(self):
         """Monitors the streaming data and cancels the connection if it times out"""

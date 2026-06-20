@@ -10,7 +10,7 @@ stays healthy.
 
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 DEFAULT_HEALTHCHECK_FILE = "/tmp/healthcheck"
 DEFAULT_MAX_AGE_SECONDS = 60
@@ -31,8 +31,10 @@ def format_heartbeat(signalk_ok: bool, now: datetime) -> str:
 def is_healthy(content: str, now: datetime, max_age_seconds: int = DEFAULT_MAX_AGE_SECONDS) -> bool:
     """Return True when the heartbeat content reports OK and is fresh.
 
-    ``content`` is the raw heartbeat file content. ``now`` is the current time
-    (naive UTC, matching how the heartbeat timestamp is written).
+    ``content`` is the raw heartbeat file content. ``now`` is the current time;
+    naive values are treated as UTC. Heartbeats written by older versions used a
+    naive UTC timestamp, so both sides are normalised to timezone-aware UTC
+    before comparison to stay compatible across an upgrade.
     """
     line = content.strip()
     if not line:
@@ -51,8 +53,18 @@ def is_healthy(content: str, now: datetime, max_age_seconds: int = DEFAULT_MAX_A
     except ValueError:
         return False
 
+    now = _as_utc(now)
+    written = _as_utc(written)
+
     age = (now - written).total_seconds()
     return 0 <= age <= max_age_seconds
+
+
+def _as_utc(value: datetime) -> datetime:
+    """Treat a naive datetime as UTC; leave aware datetimes unchanged."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 def main() -> int:
@@ -64,7 +76,7 @@ def main() -> int:
     except OSError:
         return 1
 
-    return 0 if is_healthy(content, now=datetime.utcnow()) else 1
+    return 0 if is_healthy(content, now=datetime.now(timezone.utc)) else 1
 
 
 if __name__ == "__main__":
