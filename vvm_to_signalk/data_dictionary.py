@@ -42,6 +42,7 @@ class DataItem:
         self.access = record.get("access", "")
         self.enum = record.get("enum")
         self.bits = record.get("bits")
+        self._bit_specs = self._parse_bits(self.bits)  # list[(start, length, name)]
 
     def __str__(self):
         return f"DataItem(id={self.id}, name={self.name!r}, type={self.type}, units={self.units})"
@@ -57,6 +58,48 @@ class DataItem:
     @property
     def is_vessel(self) -> bool:
         return self.access.endswith("Vessel")
+
+    @staticmethod
+    def _parse_bits(bits):
+        specs = []
+        if not bits:
+            return specs
+        inner = bits.strip().strip("{}")
+        for part in inner.split(","):
+            if ":" not in part:
+                continue
+            rng, name = part.split(":", 1)
+            if "-" not in rng:
+                continue
+            start_s, length_s = rng.split("-", 1)
+            try:
+                specs.append((int(start_s), int(length_s), name.strip()))
+            except ValueError:
+                continue
+        return specs
+
+    @property
+    def is_enum(self) -> bool:
+        return bool(self.enum)
+
+    @property
+    def is_bitfield(self) -> bool:
+        return bool(self._bit_specs)
+
+    def render_enum(self, raw: int):
+        if not self.enum:
+            return None
+        return self.enum.get(str(int(raw)))
+
+    def render_bits(self, raw: int) -> dict:
+        raw = int(raw)
+        out = {}
+        for start, length, name in self._bit_specs:
+            if "reserved" in name.lower():
+                continue
+            mask = (1 << length) - 1
+            out[name] = (raw >> start) & mask
+        return out
 
     def decode_values(self, payload: bytes, max_engines: int = 4) -> list[float]:
         """Decode the per-engine values that follow the 2-byte ID.

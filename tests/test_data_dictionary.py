@@ -53,3 +53,19 @@ def test_unknown_id_returns_none():
     d = DataDictionary.load()
     item, values = decode_notification(bytes.fromhex("ffff0000"), d)
     assert item is None and values == []
+
+def test_render_enum_guardian_cause():
+    item = DataDictionary.load().by_id(87)
+    assert item.is_enum
+    assert item.render_enum(4) == "GC_LOW_OIL"
+    assert item.render_enum(0) == "GC_NONE"
+
+def test_render_bits_seven_function_gauge():
+    item = DataDictionary.load().by_id(97)
+    assert item.is_bitfield
+    # bit2 (Guardian/Check Engine) + bit4 (Water in Fuel) set => 0b10100 = 20
+    flags = item.render_bits(0b10100)
+    assert flags["Guardian/Check Engine"] == 1
+    assert flags["Water in Fuel"] == 1
+    assert flags["Oil Fault"] == 0
+    assert "Reserved" not in flags  # reserved bits are dropped
