@@ -35,6 +35,7 @@ class BleDeviceConnection:
         self.__health = health_status
         self.__last_message_time = None
         self.__data_receivers = []
+        self.__publish_tasks = set()
         self._dictionary = DataDictionary.load()
         self._max_engines = 4
         self._active_engine_ids = None   # set from data-item 10000
@@ -264,9 +265,9 @@ class BleDeviceConnection:
 
     def _publish_engine_value(self, item, engine_id, value):
         """Dispatch a decoded engine value to all registered receivers."""
+        loop = asyncio.get_event_loop()
         for receiver in self.__data_receivers:
-            loop = asyncio.get_event_loop()
-            loop.create_task(receiver.accept_engine_data(item, engine_id, value))
+            self._track_task(loop.create_task(receiver.accept_engine_data(item, engine_id, value)))
 
     def _update_active_engines(self, data: bytes):
         """Parse data-item 10000 bitfield to track which engine IDs are active."""
@@ -282,8 +283,24 @@ class BleDeviceConnection:
         if fault is None:
             return
         logger.info("Fault received: %s", fault)
+        loop = asyncio.get_event_loop()
         for receiver in self.__data_receivers:
-            asyncio.get_event_loop().create_task(receiver.accept_fault(fault))
+            self._track_task(loop.create_task(receiver.accept_fault(fault)))
+
+    def _track_task(self, task: asyncio.Task):
+        """Retain a strong reference to a fire-and-forget receiver task so it
+        isn't garbage-collected before it runs, and observe its result so
+        receiver errors aren't silently swallowed."""
+        self.__publish_tasks.add(task)
+        task.add_done_callback(self._publish_task_done)
+
+    def _publish_task_done(self, task: asyncio.Task):
+        """Done-callback for receiver tasks: drop the reference and log failures."""
+        self.__publish_tasks.discard(task)
+        if task.cancelled():
+            return
+        if (error := task.exception()) is not None:
+            logger.warning("Error dispatching data to receiver: %s", error)
 
     async def _initalize_vvm(self, client: BleakClient):
         """
@@ -451,20 +468,26 @@ class BleDeviceConnection:
 
     async def _retrieve_device_info(self, client: BleakClient):
         """
-        Retrieves the BLE standard data for the device
+        Retrieves the BLE standard data for the device. Characteristics that the
+        device doesn't expose come back as None and are reported as unavailable
+        rather than crashing initialization.
         """
 
-        model_number = await self._read_char(client, UUIDs.MODEL_NBR_UUID)
-        logger.info("Model Number: %s", "".join([chr(c) for c in model_number]))
-        
-        device_name = await self._read_char(client, UUIDs.DEVICE_NAME_UUID)
-        logger.info("Device Name: %s", "".join([chr(c) for c in device_name]))
+        logger.info("Model Number: %s",
+                    self._decode_string_char(await self._read_char(client, UUIDs.MODEL_NBR_UUID)))
+        logger.info("Device Name: %s",
+                    self._decode_string_char(await self._read_char(client, UUIDs.DEVICE_NAME_UUID)))
+        logger.info("Manufacturer Name: %s",
+                    self._decode_string_char(await self._read_char(client, UUIDs.MANUFACTURER_NAME_UUID)))
+        logger.info("Firmware Revision: %s",
+                    self._decode_string_char(await self._read_char(client, UUIDs.FIRMWARE_REV_UUID)))
 
-        manufacturer_name = await self._read_char(client, UUIDs.MANUFACTURER_NAME_UUID)
-        logger.info("Manufacturer Name: %s", "".join([chr(c) for c in manufacturer_name]))
-
-        firmware_revision = await self._read_char(client, UUIDs.FIRMWARE_REV_UUID)
-        logger.info("Firmware Revision: %s", "".join([chr(c) for c in firmware_revision]))
+    @staticmethod
+    def _decode_string_char(value):
+        """Decode a string characteristic value, tolerating absent (None) data."""
+        if value is None:
+            return "<unavailable>"
+        return "".join(chr(c) for c in value)
 
 
 class UUIDs:
