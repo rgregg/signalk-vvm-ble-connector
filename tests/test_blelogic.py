@@ -181,6 +181,48 @@ class Test_ConnectionLifecycle(unittest.IsolatedAsyncioTestCase):
         assert 7 in sleeps
 
 
+class _HexCountingBytes(bytearray):
+    """A bytearray that records how many times .hex() is called on it."""
+    def hex(self, *args, **kwargs):
+        self.hex_calls = getattr(self, "hex_calls", 0) + 1
+        return bytearray.hex(self, *args, **kwargs)
+
+
+def test_set_health_ok_without_message_is_not_noisy(caplog):
+    """Clearing the health state with no message must not log a placeholder
+    line on every healthy transition."""
+    # A prior IsolatedAsyncioTestCase may have closed the loop; ensure one exists
+    # because BleDeviceConnection.__init__ creates an asyncio.Future.
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+    with caplog.at_level(logging.INFO, logger="vvm_to_signalk.ble_connection"):
+        conn._set_health(True)
+    assert caplog.records == []
+
+
+def test_notification_handler_skips_hex_when_debug_disabled():
+    """The per-notification hot path must not pay for data.hex() when
+    debug logging is turned off."""
+    ble_logger = logging.getLogger("vvm_to_signalk.ble_connection")
+    old_level = ble_logger.level
+    ble_logger.setLevel(logging.INFO)
+    try:
+        # Ensure a current event loop exists (a prior IsolatedAsyncioTestCase
+        # may have closed it); __init__ creates an asyncio.Future.
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+        conn._dictionary = DataDictionary.load()
+        conn._max_engines = 1
+        # id 1 (RPM), engine1=600 (0x0258)
+        data = _HexCountingBytes(bytes.fromhex("0100" + "5802"))
+        conn.notification_handler(
+            FakeChar("00000102-0000-1000-8000-ec55f9f5b963"), data)
+        asyncio.get_event_loop().run_until_complete(asyncio.sleep(0))
+        assert getattr(data, "hex_calls", 0) == 0
+    finally:
+        ble_logger.setLevel(old_level)
+
+
 if __name__ == "__main__":
     logging.basicConfig(stream=sys.stderr)
     logging.getLogger().setLevel(logging.DEBUG)
