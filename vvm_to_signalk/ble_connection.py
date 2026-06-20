@@ -23,8 +23,6 @@ _CHANNEL_UUID_TEMPLATE = "000001{:02x}-0000-1000-8000-ec55f9f5b963"  # 0x02..0x1
 class BleDeviceConnection:
     """Handles the connection to the BLE hardware device"""
 
-    rescan_timeout_seconds = 10
-
     def __init__(self, config: 'BleConnectionConfig', health_status):
         logger.debug("Created a new instance of decoder class")
         self.__config = config
@@ -107,7 +105,6 @@ class BleDeviceConnection:
         self.__health["bluetooth"] = value
         if message is None:
             self.__health.pop("bluetooth_error", None)
-            logger.info("bluetooth_error - no message")
         else:
             self.__health["bluetooth_error"] = message
             logger.info(message)
@@ -255,7 +252,10 @@ class BleDeviceConnection:
         """Handles BLE notifications and indications."""
         self.__last_message_time = asyncio.get_event_loop().time()
         uuid = characteristic.uuid
-        logger.debug("Notification UUID %s data %s", uuid, data.hex())
+        # Guard the hex() conversion: this runs on every notification, so avoid
+        # paying for it when debug logging is disabled.
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Notification UUID %s data %s", uuid, data.hex())
 
         # Fault Alert characteristic is handled separately (Task 8).
         if uuid == UUIDs.DEVICE_201_UUID:

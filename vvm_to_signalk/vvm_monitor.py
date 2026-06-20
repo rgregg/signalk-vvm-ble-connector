@@ -238,8 +238,6 @@ class VVMConfig:
         self._logging_keep = 5
 
         self.__healthcheck_enabled = False
-        self.__healthcheck_port = "5000"
-        self.__healthcheck_ip = "127.0.0.1"
 
         if data is not None:
             self.read(data)
