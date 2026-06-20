@@ -9,6 +9,11 @@ signalk:
   username: admin
   password: admin
   retry-interval-seconds: 30
+  # Optional: map engine numbers (1-4) to SignalK propulsion instance labels.
+  # Default: 1=starboard, 2=port, 3=3, 4=4
+  engine-labels:
+    1: starboard
+    2: port
 logging:
   level: INFO
   file: ./logs/vvm_monitor.log

@@ -6,160 +6,76 @@ import asyncio
 import sys
 from bleak import BleakGATTCharacteristic
 from vvm_to_signalk.ble_connection import BleDeviceConnection, BleConnectionConfig
-from vvm_to_signalk.config_decoder import ConfigDecoder, EngineParameter, EngineParameterType
+from vvm_to_signalk.config_decoder import ConfigDecoder
+from vvm_to_signalk.data_dictionary import DataDictionary
 
 logger = logging.getLogger(__name__)
 
-class BasicGATTCharacteristic(BleakGATTCharacteristic):
-    """Replace the built-in GATT class with one we can override the properties on"""
-    
-    def __init__(self, uuid, properties, value_handle):
-        super().__init__(uuid, None)
-        self.__uuid = uuid
-        self.__properties = properties
-        self.__value_handle = value_handle
-    
-    
-    def add_descriptor(self, descriptor):
-        """Abstract method"""
-    
-    @property
-    def descriptors(self):
-        """Abstract method"""
-    
-    def get_descriptor(self, specifier):
-        """Abstract method"""
-    
-    @property
-    def handle(self):
-        """Abstract method"""
-    
-    @property
-    def properties(self):
-        """Abstract method"""
+class FakeReceiver:
+    """Fake receiver that captures decoded engine data calls."""
+    def __init__(self):
+        self.calls = []
 
-    @property
-    def service_handle(self):
-        """Abstract method"""
+    async def accept_engine_data(self, item, engine_id, value):
+        """Capture a decoded engine data call."""
+        self.calls.append((item.id, engine_id, value))
 
-    @property    
-    def service_uuid(self):
-        """Abstract method"""
-    
-    @property
-    def uuid(self):
-        """Returns the UUID for the characteristic"""
-        return self.__uuid
+    def update_active_items(self, item_ids):
+        """Capture active item IDs."""
+        self.active = item_ids
 
 
-class Test_DataDecoderTests(unittest.IsolatedAsyncioTestCase):
-    """List of UUIDs for various components of the system"""
-
-    ENGINE_RPM_UUID = "00000102-0000-1000-8000-ec55f9f5b963"
-    COOLANT_TEMPERATURE_UUID = "00000103-0000-1000-8000-ec55f9f5b963"
-    BATTERY_VOLTAGE_UUID = "00000104-0000-1000-8000-ec55f9f5b963"
-    UNK_105_UUID = "00000105-0000-1000-8000-ec55f9f5b963"
-    ENGINE_RUNTIME_UUID = "00000106-0000-1000-8000-ec55f9f5b963"
-    CURRENT_FUEL_FLOW_UUID = "00000107-0000-1000-8000-ec55f9f5b963"
-    UNK_108_UUID = "00000108-0000-1000-8000-ec55f9f5b963"
-    UNK_109_UUID = "00000109-0000-1000-8000-ec55f9f5b963"
-    OIL_PRESSURE_UUID = "0000010a-0000-1000-8000-ec55f9f5b963"
-    UNK_10B_UUID = "0000010b-0000-1000-8000-ec55f9f5b963"
-    UNK_10C_UUID = "0000010c-0000-1000-8000-ec55f9f5b963"
-    UNK_10D_UUID = "0000010d-0000-1000-8000-ec55f9f5b963"   
+class FakeChar:
+    """Minimal stand-in for BleakGATTCharacteristic."""
+    def __init__(self, uuid):
+        self.uuid = uuid
 
 
-    def configure_parameters(self, decoder:BleDeviceConnection):
-        """Configure test parameters"""
-
-        decoder.engine_parameters[1] = EngineParameter(EngineParameterType.ENGINE_RPM.value, 1)
-        decoder.engine_parameters[210] = EngineParameter(EngineParameterType.COOLANT_TEMPERATURE.value, 210)
-        decoder.engine_parameters[232] = EngineParameter(EngineParameterType.BATTERY_VOLTAGE.value, 232)
-        decoder.engine_parameters[150] = EngineParameter(EngineParameterType.ENGINE_RUNTIME.value, 150)
-        decoder.engine_parameters[10] = EngineParameter(EngineParameterType.CURRENT_FUEL_FLOW.value, 10)
-        decoder.engine_parameters[181] = EngineParameter(EngineParameterType.OIL_PRESSURE.value, 181)
-
-    def configure_parameters_live(self, connection:BleDeviceConnection):
-        """Configure live data stream"""
-        config_data = "28b6000100000001000001d2000002e800000370170004960000050a000006401f000710270008b5000009d400000ab600000bfb00000c0000000d0000000e000001000000010100000102000001030000010400000105000001060000010700000108000001090000010a0000010b0000010c0000010d0000010e000002000000020100000202000002030000020400000205000002060000020700000208000002090000020a0000020b0000020c0000020d0000020e0000"
-        decoder = ConfigDecoder()
-        params = decoder.parse_params(bytes.fromhex(config_data))
-        connection.update_engine_params(params)
-
-    async def test_notifications(self):
-        """test the notification system"""
-
-        config = BleConnectionConfig()
-        config.device_name = "UnitTestRunner"
-
-        decoder = BleDeviceConnection(config, {})
-        self.configure_parameters_live(decoder)
-        
-        # Engine RPM
-        await self.run_char_validation(decoder, 
-                                       Test_DataDecoderTests.ENGINE_RPM_UUID,  
-                                       bytes([0x01, 0x00, 0x5e, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-                                       606)
-                
-        await self.run_char_validation(decoder,
-                                       Test_DataDecoderTests.ENGINE_RPM_UUID,
-                                       bytes([0x01, 0x00, 0x7e, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-                                       4222)
-
-        # Coolant Temperature
-        await self.run_char_validation(decoder, 
-                                       Test_DataDecoderTests.COOLANT_TEMPERATURE_UUID,  
-                                       bytes([0xd2, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-                                       64)
-
-        # Battery Voltage
-        await self.run_char_validation(decoder,
-                                       Test_DataDecoderTests.BATTERY_VOLTAGE_UUID,
-                                       bytes([0xe8, 0x00, 0x8f, 0x2f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-                                       12175)
-
-        # Engine Runtime
-        await self.run_char_validation(decoder,
-                                       Test_DataDecoderTests.ENGINE_RUNTIME_UUID,
-                                       bytes([0x96, 0x00, 0xab, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-                                       5803)
-
-        # Fuel Flow
-        await self.run_char_validation(decoder,
-                                       Test_DataDecoderTests.CURRENT_FUEL_FLOW_UUID,
-                                       bytes([0x0A, 0x00, 0x56, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-                                       598)
-        
-        await self.run_char_validation(decoder,
-                                       Test_DataDecoderTests.CURRENT_FUEL_FLOW_UUID,
-                                       bytes([0x0a, 0x00, 0xb5, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-                                       6325)
-
-        # Oil Pressure
-        await self.run_char_validation(decoder,
-                                       Test_DataDecoderTests.OIL_PRESSURE_UUID,
-                                       bytes([0xB5, 0x00, 0xAE, 0x6B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-                                       27566)
+def test_notification_decodes_all_engines():
+    """BLE notification handler decodes multi-engine payloads via the dictionary."""
+    health = {}
+    conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), health)
+    rx = FakeReceiver()
+    conn.accept_data_receiver(rx)
+    conn._dictionary = DataDictionary.load()
+    conn._max_engines = 2
+    # id 1 (RPM), engine1=600 (0x0258), engine2=1000 (0x03E8)
+    data = bytearray.fromhex("0100" + "5802" + "e803")
+    conn.notification_handler(FakeChar("00000102-0000-1000-8000-ec55f9f5b963"), data)
+    # allow the scheduled publish tasks to run
+    asyncio.get_event_loop().run_until_complete(asyncio.sleep(0))
+    assert (1, 1, 600.0) in rx.calls
+    assert (1, 2, 1000.0) in rx.calls
 
 
-    async def run_char_validation(self, decoder: BleDeviceConnection, uuid: str, data, expected_result):
-        """Validate a characteristic processing"""
-
-        char = BasicGATTCharacteristic(uuid, None, None)        
-        promise = decoder.future_data_for_uuid(uuid)
-        decoder.notification_handler(char, data)
-        try:
-            async with asyncio.timeout(2):
-                result = await promise
-                assert result == expected_result
-        except TimeoutError:
-            logger.warning("TimeoutError validating char change for uuid: %s", uuid)
-            assert False
+def test_update_active_engines_parses_bitfield():
+    """Data-item 10000 (Active Engines) bitfield populates the active-engine set."""
+    conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+    conn._dictionary = DataDictionary.load()
+    # id 10000 (0x2710 -> LE "1027"), bitfield 0x03 = engines 1 and 2 active
+    conn.notification_handler(FakeChar("00000109-0000-1000-8000-ec55f9f5b963"),
+                              bytearray.fromhex("1027" + "03"))
+    asyncio.get_event_loop().run_until_complete(asyncio.sleep(0))
+    assert conn._active_engine_ids == {1, 2}
 
 
+def test_inactive_engine_excluded():
+    """Values for engines not in the active set are not published."""
+    conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+    rx = FakeReceiver()
+    conn.accept_data_receiver(rx)
+    conn._dictionary = DataDictionary.load()
+    conn._max_engines = 2
+    conn._active_engine_ids = {1}  # only engine 1 active
+    # id 1 (RPM), engine1=600 (0x0258), engine2=1000 (0x03E8)
+    conn.notification_handler(FakeChar("00000102-0000-1000-8000-ec55f9f5b963"),
+                              bytearray.fromhex("0100" + "5802" + "e803"))
+    asyncio.get_event_loop().run_until_complete(asyncio.sleep(0))
+    assert (1, 1, 600.0) in rx.calls
+    assert all(engine_id != 2 for _id, engine_id, _value in rx.calls)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(stream = sys.stderr )
+    logging.basicConfig(stream=sys.stderr)
     logging.getLogger().setLevel(logging.DEBUG)
     unittest.main()

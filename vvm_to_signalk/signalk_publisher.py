@@ -1,6 +1,5 @@
 """Module for SignalK data processing"""
 
-from typing import Any
 import json
 import logging
 import uuid
@@ -8,8 +7,10 @@ import asyncio
 import websockets
 
 from .futures_queue import FuturesQueue
-from .config_decoder import EngineParameter, EngineParameterType
-from .conversion import Conversion
+from .signalk_mapping import signalk_path, to_si, engine_label, _camel
+
+_OFFLINE_FAULT_IDS = {87, 106}     # enum-style single alarm (Guardian Cause, MIL)
+_BITFIELD_FAULT_IDS = {97}         # one notification per bit (Seven Function Gauge)
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +19,14 @@ class SignalKPublisher:
 
     def __init__(self, config: 'SignalKConfig', health_status):
         self.__config = config
-        
+
         self.__websocket = None
         self.__socket_connected = False
         self.__abort = False
         self.__notifications = FuturesQueue()
         self.__health = health_status
         self.__should_log_connection_down = True
+        self.__last_notification_state = {}
 
     @property
     def websocket_url(self):
@@ -186,69 +188,83 @@ class SignalKPublisher:
         }
         return delta
     
-    def convert_value(self, param: EngineParameter, value):
-        """Converts the data from an engine parameter into the format for SignalK"""
-        if (conversion_func := Conversion.conversion_for_parameter_type(param.parameter_type)) is None:
-            logger.warning("No conversion function specified for %s", param.parameter_type.name)
-            return value
-        
-        converted_value = conversion_func(value)
-        return converted_value
-    
-    PATH_MAP = {
-        EngineParameterType.ENGINE_RPM: "revolutions",
-        EngineParameterType.COOLANT_TEMPERATURE: "temperature",
-        EngineParameterType.BATTERY_VOLTAGE: "alternatorVoltage",
-        EngineParameterType.ENGINE_RUNTIME: "runTime",
-        EngineParameterType.CURRENT_FUEL_FLOW: "fuel.rate",
-        EngineParameterType.OIL_PRESSURE: "oilPressure",
-        EngineParameterType.WATER_PRESSURE: "coolantPressure",
-    }
+    def update_active_items(self, item_ids):
+        """No-op: the publisher maps each value as it arrives."""
 
-    def path_for_parameter(self, param: EngineParameter):
-        """Return the Signal K path for the parameter"""
-        engine_name = "port"
-        if (param.engine_id == 1):
-            engine_name = "starboard"
-        if (param.engine_id > 1):
-            engine_name = str(param.engine_id)
-
-        path_component = self.PATH_MAP.get(param.parameter_type)
-        if path_component:
-            return f"propulsion.{engine_name}.{path_component}"
-        
-        logger.debug("Unable to map SignalK path for parameter type %s on engine %s.", param.parameter_type, param.engine_id)
-        return f"propulsion.{engine_name}.{param.parameter_type.name}"
-
-    def update_engine_parameters(self, parameters: list[EngineParameter]):
-        """No-op: Getting parameters from the BLE connection is not necessary for SignalK."""
-        pass
-        
-
-    async def accept_engine_data(self, param: EngineParameter, value: Any) -> None:
-        """Publishes a delta to the SignalK API for the engine data"""
-
-        if not self.__config.send_unknown_parameters and param.is_unknown():
-            # skip unknown parameters
-            logger.debug("Skipping unknown parameter due to configuration setting")
+    async def _send_notification(self, path, state, message, extra=None):
+        """Send a SignalK notification delta, but only when the state changed since
+        the last published value for this path (avoids per-cycle notification spam)."""
+        if self.__last_notification_state.get(path) == state:
             return
-        
-        signalk_path = self.path_for_parameter(param)
-        signalk_value = self.convert_value(param, value)
-        logger.debug("Sending path %s with value %s.", signalk_path, signalk_value)
-        
+        if not self.socket_connected:
+            return
+        value = {"state": state,
+                 "method": ["visual", "sound"] if state == "alarm" else [],
+                 "message": message}
+        if extra:
+            value["vvm"] = extra
+        try:
+            await self.__websocket.send(json.dumps(self.generate_delta(path, value)))
+            self.__last_notification_state[path] = state
+        except Exception as e:
+            logger.warning("Error sending notification: %s", e)
+
+    async def accept_engine_data(self, item, engine_id, value) -> None:
+        """Publish a decoded engine value as a SignalK delta."""
+        label = engine_label(engine_id, self.__config.engine_labels)
+        if item.id in _OFFLINE_FAULT_IDS:
+            text = item.render_enum(value) or str(int(value))
+            inactive = int(value) == 0  # 0 == GC_NONE / MIL Off
+            await self._send_notification(
+                f"notifications.propulsion.{label}.{_camel(item.name)}",
+                "normal" if inactive else "alarm",
+                f"Engine {engine_id} {item.name}: {text}")
+            return
+        if item.id in _BITFIELD_FAULT_IDS:
+            for flag_name, flag_val in item.render_bits(value).items():
+                await self._send_notification(
+                    f"notifications.propulsion.{label}.{_camel(flag_name)}",
+                    "alarm" if flag_val else "normal",
+                    f"Engine {engine_id} {flag_name}: {'active' if flag_val else 'clear'}")
+            return
+        path = signalk_path(item, engine_id, self.__config.engine_labels,
+                            include_unmapped=self.__config.send_unknown_parameters)
+        if path is None:
+            logger.debug("No SignalK path for %s; skipping", item.name)
+            return
+        si_value = to_si(value, item.units)
         if self.socket_connected:
-            delta = self.generate_delta(signalk_path, signalk_value)
+            delta = self.generate_delta(path, si_value)
             try:
                 await self.__websocket.send(json.dumps(delta))
-                self.__should_log_connection_down = True    # Reset the flag to log connection down only once
+                self.__should_log_connection_down = True
             except websockets.exceptions.ConnectionClosed:
-                logger.warning("Websocket connection closed. Data delta may not have been published.")
+                logger.warning("Websocket closed; delta not published.")
             except Exception as e:
                 logger.warning("Error sending on websocket: %s", e)
-        elif self.__should_log_connection_down:
-                logger.debug("Websocket connection closed. No data was sent.")
-                self.__should_log_connection_down = False
+
+    async def accept_fault(self, fault):
+        """Publish a fault as a SignalK notification delta."""
+        label = engine_label(fault.engine_position, self.__config.engine_labels)
+        path = f"notifications.propulsion.{label}.vvmFault.{fault.fault_key}"
+        value = {
+            "state": "alarm" if fault.is_active else "normal",
+            "method": ["visual", "sound"] if fault.is_active else [],
+            "message": f"Engine {fault.engine_position} fault {fault.fault_key}"
+                       + ("" if fault.is_active else " cleared"),
+            "vvm": {
+                "faultId": fault.fault_id,
+                "failureTypeId": fault.failure_type_id,
+                "severity": fault.severity,
+                "type": fault.fault_type,
+            },
+        }
+        if self.socket_connected:
+            try:
+                await self.__websocket.send(json.dumps(self.generate_delta(path, value)))
+            except Exception as e:
+                logger.warning("Error sending fault on websocket: %s", e)
+
 
 class SignalKConfig:
     """Defines the configuration for the SignalK server"""
@@ -258,6 +274,7 @@ class SignalKConfig:
         self.__password = None
         self.__retry_interval = 5
         self.__send_unknown_parameters = False
+        self.__engine_labels = None
         if data is not None:
             self.read(data)
     
@@ -270,6 +287,9 @@ class SignalKConfig:
         self.__password = data.get('password', self.__password)
         self.__retry_interval = data.get('retry-interval-seconds', self.__retry_interval)
         self.__send_unknown_parameters = data.get('send-unknown-parameters', self.__send_unknown_parameters)
+        labels = data.get('engine-labels')
+        if labels is not None:
+            self.__engine_labels = {int(k): str(v) for k, v in labels.items()}
 
     @property
     def websocket_url(self):
@@ -320,6 +340,12 @@ class SignalKConfig:
     @send_unknown_parameters.setter
     def send_unknown_parameters(self, value):
         self.__send_unknown_parameters = value
-    
 
+    @property
+    def engine_labels(self):
+        """Optional dict mapping engine_id -> label string."""
+        return self.__engine_labels
 
+    @engine_labels.setter
+    def engine_labels(self, value):
+        self.__engine_labels = value

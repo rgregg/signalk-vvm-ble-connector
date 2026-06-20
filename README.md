@@ -11,23 +11,16 @@ running as a docker container and exporting signals to the SignalK API.
 
 ## Supported Configuration
 
-My boat is a relatively new SmartCraft boat with a single MerCrusier gasoline engine. I've been using the data
-I can observe from this configuration to build this setup, so support is limited to the parameters I can observe
-and decode.
+This connector decodes all SmartCraft parameters streamed by the Vessel View Mobile device and publishes them to SignalK.
+It supports up to 4 engines and exposes engine faults as SignalK notifications. The channel map is discovered at runtime.
 
-Currently supported:
+**Key capabilities:**
 
-- Single engine connected to the Vessel View Mobile device
-- Parameters:
-  - Engine RPM
-  - Coolant Temperature
-  - Battery / Alternator Voltage
-  - Engine Run Time
-  - Current Fuel Flow
-  - Oil Pressure
-
-So far there are four other parameters which I can see data for but
-I have been unable to determine what they map back to. I'll continue to investigate and update accordingly.
+- **Multi-engine support**: Handles up to 4 engines with configurable labels (e.g., "port" and "starboard").
+- **All SmartCraft parameters**: For full parameter mapping, see [docs/protocol-map.md](docs/protocol-map.md).
+- **Engine faults**: Published as SignalK `notifications.propulsion.*` with fault details.
+- **Runtime channel discovery**: Automatically maps VVM channels to parameters as they are observed.
+- **Configurable engine labels**: Map engine numbers to custom labels in the `signalk.engine-labels` config section.
 
 ## Run with Docker
 

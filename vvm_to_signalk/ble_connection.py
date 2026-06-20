@@ -8,10 +8,17 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.uuids import normalize_uuid_16, uuid16_dict
 from bleak.exc import BleakCharacteristicNotFoundError
 from .futures_queue import FuturesQueue
-from .config_decoder import EngineParameter, ConfigDecoder, EngineDataReceiver
+from .config_decoder import ConfigDecoder, EngineDataReceiver
+from .data_dictionary import DataDictionary, decode_notification, build_channel_config
+from .fault_decoder import parse_fault
 
 logger = logging.getLogger(__name__)
 BLE_TIMEOUT = 30
+
+# offline alarm items to request if not already streamed
+OFFLINE_FAULT_ITEM_IDS = [87, 97, 106]   # Guardian Cause, Seven Function Gauge, MIL
+
+_CHANNEL_UUID_TEMPLATE = "000001{:02x}-0000-1000-8000-ec55f9f5b963"  # 0x02..0x10 -> chars
 
 class BleDeviceConnection:
     """Handles the connection to the BLE hardware device"""
@@ -24,11 +31,14 @@ class BleDeviceConnection:
         self.__abort = False
         self.__cancel_signal = asyncio.Future()
         self.__notification_queue = FuturesQueue()
-        self.__engine_parameters = {}
         self.__task_group = None
         self.__health = health_status
         self.__last_message_time = None
         self.__data_receivers = []
+        self._dictionary = DataDictionary.load()
+        self._max_engines = 4
+        self._active_engine_ids = None   # set from data-item 10000
+        self._last_active_ids = None     # set from runtime channel-map parse
 
     def accept_data_receiver(self, receiver: EngineDataReceiver) -> None:
         """Add a new data receiver to the collection"""
@@ -48,12 +58,7 @@ class BleDeviceConnection:
     def retry_interval(self):
         """Interval in seconds for retrying when an error occurs"""
         return self.__config.retry_interval
-    
-    @property
-    def engine_parameters(self):
-        """Set of parameters detected from the hardware device"""
-        return self.__engine_parameters
-    
+
     def device_disconnected(self, _client: BleakClient):
         """ Handle when the BLE device disconnects """
         self._set_health(False, "BLE device disconnected")
@@ -118,6 +123,7 @@ class BleDeviceConnection:
                     
                 logger.info("Configuring data streaming notifications...")
                 await self._setup_data_notifications(client)
+                await self._request_offline_fault_channels(client, self._last_active_ids or [])
 
                 logger.info("Enabling data streaming from BLE device")
                 await self._set_streaming_mode(client, enabled=True)
@@ -197,63 +203,87 @@ class BleDeviceConnection:
         # Iterate over all characteristics in all services and subscribe
         for service in client.services:
             for characteristic in service.characteristics:
-                if "notify" in characteristic.properties:
+                props = characteristic.properties
+                if "notify" in props or "indicate" in props:
                     try:
                         await client.start_notify(characteristic.uuid, self.notification_handler)
                         logger.debug("Subscribed to %s", characteristic.uuid)
                     except Exception as e:
-                        logger.warning("Unable to subscribe to  %s: %s", characteristic.uuid, e)
+                        logger.warning("Unable to subscribe to %s: %s", characteristic.uuid, e)
     
 
+    async def _request_offline_fault_channels(self, client, active_ids):
+        """Configure spare channel slots to stream offline alarm items."""
+        # Channel characteristics are 0x102..0x110 (slots 1..15).
+        slot = len(active_ids)  # first unused slot index (0-based -> char 0x102+slot)
+        for item_id in OFFLINE_FAULT_ITEM_IDS:
+            if item_id in active_ids:
+                continue
+            if slot >= 15:
+                logger.warning("No spare channel slots for offline fault item %s", item_id)
+                break
+            char_uuid = _CHANNEL_UUID_TEMPLATE.format(0x02 + slot)
+            cfg = build_channel_config(item_id, engines=self._max_engines)
+            try:
+                # Notifications on all channel characteristics were already enabled by
+                # _setup_data_notifications; we only need to write the channel config here.
+                await client.write_gatt_char(char_uuid, cfg, response=True)
+                logger.info("Requested offline fault item %s on %s", item_id, char_uuid)
+                slot += 1
+            except Exception as e:
+                logger.warning("Could not request fault item %s on %s: %s", item_id, char_uuid, e)
+
     def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray):
-        """Handles BLE notifications and indications"""
-
+        """Handles BLE notifications and indications."""
         self.__last_message_time = asyncio.get_event_loop().time()
-
-        #Simple notification handler which prints the data received
         uuid = characteristic.uuid
-        logger.debug("Received notification from BLE - UUID: %s; data: %s", uuid, data.hex())
+        logger.debug("Notification UUID %s data %s", uuid, data.hex())
 
-        # If the notification is about an engine property, we need to push
-        # that information into the SignalK client as a property delta
+        # Fault Alert characteristic is handled separately (Task 8).
+        if uuid == UUIDs.DEVICE_201_UUID:
+            self._handle_fault_notification(bytes(data))
+            return
 
-        data_header = int.from_bytes(data[:2])
-        logger.debug("data_header: %s", data_header)
-
-        matching_param = self.__engine_parameters.get(data_header)
-        logger.debug("Matching parameter: %s", matching_param)
-        
-        if matching_param:
-            # decode data from byte array to underlying value (remove header bytes and convert to int)
-            decoded_value = self._strip_header_and_convert_to_int(data)
-            self._trigger_event_listener(uuid, decoded_value, False)
-            self._publish_data(matching_param, decoded_value)
-
-            logger.debug("Received data for %s with value %s", matching_param, decoded_value)
-        else:
-            logger.warning("Received notification for unknown data header %s on UUID: %s with data %s", data_header, uuid, data.hex())
+        # Config / UserVar exchanges are resolved via registered futures, not decoded
+        # as channel data (avoids "unmatched data" noise on every engine notification).
+        if uuid in (UUIDs.DEVICE_CONFIG_UUID, UUIDs.DEVICE_NEXT_UUID):
             self._trigger_event_listener(uuid, data, True)
+            return
 
-    def _strip_header_and_convert_to_int(self, data):
-        """
-        Parses the byte stream from a device notification, strips
-        the header bytes and converts the value to an integer with 
-        little endian byte order
-        """
+        item, values = decode_notification(bytes(data), self._dictionary, self._max_engines)
+        if item is None:
+            return
+        if item.id == 10000:
+            self._update_active_engines(bytes(data))
+            return
+        for index, value in enumerate(values):
+            engine_id = index + 1
+            if self._active_engine_ids is not None and engine_id not in self._active_engine_ids:
+                continue
+            self._publish_engine_value(item, engine_id, value)
 
-        logger.debug("Received data from device: %s" ,data)
-        data = data[2:]  # remove the header bytes
-        value = int.from_bytes(data, byteorder='little')
-        logger.debug("Converted to value: %s", value)
-        return value
-
-    def _publish_data(self, engine_param: EngineParameter, value):
-        """Submits the latest information received from the device to any registered receivers"""
-        logger.debug("Publishing engine data: %s, value %s", engine_param, value)
-
+    def _publish_engine_value(self, item, engine_id, value):
+        """Dispatch a decoded engine value to all registered receivers."""
         for receiver in self.__data_receivers:
             loop = asyncio.get_event_loop()
-            loop.create_task(receiver.accept_engine_data(engine_param, value))
+            loop.create_task(receiver.accept_engine_data(item, engine_id, value))
+
+    def _update_active_engines(self, data: bytes):
+        """Parse data-item 10000 bitfield to track which engine IDs are active."""
+        # data-item 10000 is a 1-byte bitfield after the 2-byte id
+        if len(data) >= 3:
+            bits = data[2]
+            self._active_engine_ids = {e for e in (1, 2, 3, 4) if bits & (1 << (e - 1))}
+            logger.info("Active engines: %s", sorted(self._active_engine_ids))
+
+    def _handle_fault_notification(self, data: bytes):
+        """Parse a fault alert payload and dispatch it to all registered receivers."""
+        fault = parse_fault(data)
+        if fault is None:
+            return
+        logger.info("Fault received: %s", fault)
+        for receiver in self.__data_receivers:
+            asyncio.get_event_loop().create_task(receiver.accept_fault(fault))
 
     async def _initalize_vvm(self, client: BleakClient):
         """
@@ -269,7 +299,7 @@ class BleDeviceConnection:
 
         # Indicates which parameters are available on the device
         if (engine_params := await self._request_device_parameter_config(client)) is not None:
-            self.update_engine_params(engine_params)
+            self.update_active_items(engine_params)
         else:
             logging.warning("No engine parameters were received. Will continue to try to connect.")
 
@@ -289,11 +319,11 @@ class BleDeviceConnection:
         if (expected_result := '00c80f01040000000000') != result.hex():
             logger.warning("configuration_data_3 response: %s, expected: %s", result.hex(), expected_result)
 
-    def update_engine_params(self, engine_params: list[EngineParameter]) -> None:
-        """Update parameters with new values"""
-        self.__engine_parameters = { param.notification_header: param for param in engine_params }
+    def update_active_items(self, item_ids: list[int]) -> None:
+        """Propagate the active data-item IDs to all registered receivers."""
+        self._last_active_ids = item_ids
         for receiver in self.__data_receivers:
-            receiver.update_engine_parameters(engine_params)
+            receiver.update_active_items(item_ids)
 
     async def _set_streaming_mode(self, client: BleakClient, enabled):
         """ Enable or disable engine data streaming via characteristic notifications """
@@ -305,7 +335,7 @@ class BleDeviceConnection:
 
         await client.write_gatt_char(UUIDs.DEVICE_CONFIG_UUID, data, response=True)
 
-    async def _request_device_parameter_config(self, client: BleakClient) -> list[EngineParameter]:
+    async def _request_device_parameter_config(self, client: BleakClient) -> list[int]:
         """
         Writes the request to send the parameter conmfiguration from the device
         via indications on characteristic DEVICE_CONFIG_UUID. This data is returned
@@ -329,8 +359,8 @@ class BleDeviceConnection:
 
                 decoder = ConfigDecoder()
                 decoder.add(result_data)
-                engine_parameters = decoder.combine_and_parse_data()
-                return engine_parameters
+                decoder.combine_and_parse_data()
+                return decoder.active_data_item_ids()
             
         except TimeoutError:
             logger.info("timeout waiting for configuration data to return")
