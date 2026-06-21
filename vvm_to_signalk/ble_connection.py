@@ -214,12 +214,19 @@ class BleDeviceConnection:
         """
 
         logger.debug("enabling notifications on data chars")
-        
-        # Iterate over all characteristics in all services and subscribe
+
+        # Subscribe only to "notify" characteristics. The VVM streams all
+        # engine data and fault notifications over notify-type characteristics.
+        # The indicate-type control characteristics it also exposes (e.g.
+        # 0x301/0x302/0x401 and the standard 0x2a05 Service Changed) reject a
+        # CCCD subscribe with ATT error 0x0e and then drop the BLE link, which
+        # stops streaming from ever starting. Subscribing to "indicate" here
+        # therefore breaks the whole connection, so it is intentionally omitted.
+        # Regression: test_setup_data_notifications_skips_indicate_only.
         for service in client.services:
             for characteristic in service.characteristics:
                 props = characteristic.properties
-                if "notify" in props or "indicate" in props:
+                if "notify" in props:
                     try:
                         await client.start_notify(characteristic.uuid, self.notification_handler)
                         logger.debug("Subscribed to %s", characteristic.uuid)
