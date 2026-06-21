@@ -120,6 +120,46 @@ def test_retrieve_device_info_handles_missing_characteristics():
         conn._retrieve_device_info(MissingCharsClient()))
 
 
+def test_setup_data_notifications_skips_indicate_only():
+    """Regression: the VVM drops the BLE link (ATT 0x0e) if we subscribe to its
+    indicate-type control characteristics (0x301/0x302/0x401, 0x2a05). Only
+    'notify' characteristics carry streaming data, so indicate-only ones must
+    not be subscribed."""
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    conn = BleDeviceConnection(BleConnectionConfig({"name": "x"}), {})
+
+    class PropChar:
+        """Characteristic stand-in carrying a uuid and GATT properties."""
+        def __init__(self, uuid, properties):
+            self.uuid = uuid
+            self.properties = properties
+
+    class FakeService:
+        """Service exposing a fixed list of characteristics."""
+        def __init__(self, characteristics):
+            self.characteristics = characteristics
+
+    notify_char = PropChar("00000102-0000-1000-8000-ec55f9f5b963", ["read", "notify"])
+    indicate_char = PropChar("00000401-0000-1000-8000-ec55f9f5b963", ["read", "indicate"])
+    service_changed = PropChar("00002a05-0000-1000-8000-00805f9b34fb", ["indicate"])
+
+    subscribed = []
+
+    class FakeClient:
+        """Captures which characteristic UUIDs get a start_notify."""
+        services = [FakeService([notify_char, indicate_char, service_changed])]
+
+        async def start_notify(self, uuid, _handler):
+            subscribed.append(uuid)
+
+    asyncio.get_event_loop().run_until_complete(
+        conn._setup_data_notifications(FakeClient()))
+
+    assert notify_char.uuid in subscribed
+    assert indicate_char.uuid not in subscribed
+    assert service_changed.uuid not in subscribed
+
+
 class Test_ConnectionLifecycle(unittest.IsolatedAsyncioTestCase):
     """Tests for the connect / reconnect lifecycle"""
 
